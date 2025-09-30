@@ -15,4 +15,8 @@ router.get('/verify', auth, authController.verifyToken);
 // Cambiar contraseña (ruta protegida)
 router.put('/change-password', auth, authController.changePassword);
 
+// HU03: Recuperación de contraseña
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password/:token', authController.resetPassword);
+
 module.exports = router;

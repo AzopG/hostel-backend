@@ -6,7 +6,10 @@ const usuarioSchema = new mongoose.Schema({
   password: { type: String, required: true },
   tipo: { type: String, enum: ['cliente', 'empresa', 'admin_hotel', 'admin_central'], required: true },
   empresa: String, // solo si es tipo empresa
-  reservas: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Reserva' }]
+  reservas: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Reserva' }],
+  // HU03: Campos para recuperación de contraseña
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
 });
 
 module.exports = mongoose.model('Usuario', usuarioSchema);

@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const Usuario = require('../models/Usuario');
+const { sendPasswordResetEmail, sendPasswordChangedEmail } = require('../config/email');
 
 exports.register = async (req, res) => {
   try {
@@ -182,6 +184,131 @@ exports.changePassword = async (req, res) => {
     res.json({ msg: 'Contraseña actualizada exitosamente' });
   } catch (err) {
     console.error('Error cambiando contraseña:', err);
+    res.status(500).json({ msg: 'Error interno del servidor' });
+  }
+};
+
+// HU03 - CA1, CA2, CA3: Solicitar recuperación de contraseña
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validación
+    if (!email) {
+      return res.status(400).json({ msg: 'El email es requerido' });
+    }
+
+    // Buscar usuario
+    const usuario = await Usuario.findOne({ email: email.toLowerCase() });
+    
+    // CA3: Si el correo no existe, informar
+    if (!usuario) {
+      return res.status(404).json({ msg: 'No existe una cuenta con este correo' });
+    }
+
+    // CA2: Generar token de restablecimiento (válido por 1 hora)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
+    usuario.resetPasswordToken = hash;
+    usuario.resetPasswordExpires = Date.now() + 3600000; // 1 hora
+    await usuario.save();
+
+    // CA2: Generar URL de recuperación
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+    
+    // CA1, CA2: Enviar email de recuperación
+    try {
+      const emailResult = await sendPasswordResetEmail(email, resetUrl, usuario.nombre);
+      
+      // En desarrollo, incluir preview URL de Ethereal
+      const response = { 
+        msg: 'Se ha enviado un enlace de recuperación a tu correo'
+      };
+      
+      // Solo en desarrollo: incluir información adicional
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🔗 Reset URL:', resetUrl);
+        response.resetToken = resetToken; // Para testing
+        response.resetUrl = resetUrl; // Para testing
+        if (emailResult.previewUrl) {
+          response.emailPreviewUrl = emailResult.previewUrl;
+          console.log('📧 Email preview:', emailResult.previewUrl);
+        }
+      }
+      
+      res.json(response);
+    } catch (emailError) {
+      console.error('Error enviando email:', emailError);
+      // Aunque falle el email, guardamos el token para poder probarlo
+      // En producción, podrías querer retornar un error aquí
+      res.json({ 
+        msg: 'Se ha enviado un enlace de recuperación a tu correo',
+        // En desarrollo, retornar el token aunque falle el email
+        ...(process.env.NODE_ENV !== 'production' && {
+          resetToken,
+          resetUrl,
+          warning: 'Email no enviado (error en servicio de email)'
+        })
+      });
+    }
+  } catch (err) {
+    console.error('Error en forgot password:', err);
+    res.status(500).json({ msg: 'Error interno del servidor' });
+  }
+};
+
+// HU03 - CA4: Restablecer contraseña con token
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    // Validaciones
+    if (!password) {
+      return res.status(400).json({ msg: 'La contraseña es requerida' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        msg: 'La contraseña debe tener al menos 6 caracteres' 
+      });
+    }
+
+    // Hash del token recibido
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Buscar usuario con token válido y no expirado
+    const usuario = await Usuario.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!usuario) {
+      return res.status(400).json({ 
+        msg: 'Token inválido o expirado. Solicita un nuevo enlace de recuperación.' 
+      });
+    }
+
+    // CA4: Establecer nueva contraseña
+    const hash = await bcrypt.hash(password, 12);
+    usuario.password = hash;
+    usuario.resetPasswordToken = undefined;
+    usuario.resetPasswordExpires = undefined;
+    await usuario.save();
+
+    // CA4: Enviar email de confirmación
+    try {
+      await sendPasswordChangedEmail(usuario.email, usuario.nombre);
+    } catch (emailError) {
+      console.error('Error enviando email de confirmación:', emailError);
+      // No fallar la operación si el email falla
+    }
+
+    res.json({ msg: 'Contraseña restablecida exitosamente. Ahora puedes iniciar sesión.' });
+  } catch (err) {
+    console.error('Error en reset password:', err);
     res.status(500).json({ msg: 'Error interno del servidor' });
   }
 };

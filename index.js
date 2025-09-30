@@ -29,10 +29,16 @@ app.use('/api/inventario', require('./routes/inventario'));
 
 const PORT = process.env.PORT || 4000;
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('Conectado a MongoDB');
-  app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
-}).catch(err => console.error('Error de conexión:', err));
+// Solo iniciar el servidor si no estamos en modo test
+if (process.env.NODE_ENV !== 'test') {
+  mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  }).then(() => {
+    console.log('Conectado a MongoDB');
+    app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+  }).catch(err => console.error('Error de conexión:', err));
+}
+
+// Exportar app para testing
+module.exports = app;

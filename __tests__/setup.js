@@ -4,15 +4,29 @@ const mongoose = require('mongoose');
 let mongoServer;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  // Solo crear servidor si no existe
+  if (!mongoServer) {
+    mongoServer = await MongoMemoryServer.create();
+  }
+  
   const mongoUri = mongoServer.getUri();
   
-  await mongoose.connect(mongoUri);
+  // Solo conectar si no hay conexión activa o si la conexión está cerrada
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(mongoUri);
+  }
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
+  // Solo desconectar si hay una conexión activa
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
+  
+  // Solo detener servidor si existe
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
 });
 
 afterEach(async () => {
