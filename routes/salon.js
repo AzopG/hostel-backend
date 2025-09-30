@@ -1,24 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const Salon = require('../models/Salon');
+const salonController = require('../controllers/salonController');
+const { auth } = require('../middleware/auth');
 
-// Consultar salones por hotel y filtros
-router.get('/', async (req, res) => {
-  const { hotel, capacidad, equipamiento, disponible } = req.query;
-  const filtro = {};
-  if (hotel) filtro.hotel = hotel;
-  if (capacidad) filtro.capacidad = capacidad;
-  if (equipamiento) filtro.equipamiento = equipamiento;
-  if (disponible) filtro.disponible = disponible;
-  const salones = await Salon.find(filtro);
-  res.json(salones);
-});
+// HU14 - CA1, CA2, CA4: Búsqueda de salones disponibles por capacidad y fechas
+// GET /api/salon/buscar?hotelId=X&capacidadMinima=Y&fechaInicio=Z&fechaFin=W&ordenarPor=capacidad_asc
+router.get('/buscar', salonController.buscarSalonesDisponibles);
 
-// Crear salón
-router.post('/', async (req, res) => {
-  const salon = new Salon(req.body);
-  await salon.save();
-  res.status(201).json(salon);
-});
+// Listar todos los salones de un hotel
+// GET /api/salon/hotel/:hotelId
+router.get('/hotel/:hotelId', salonController.listarSalonesHotel);
+
+// HU14 - CA3: Verificar disponibilidad específica de un salón
+// GET /api/salon/:id/disponibilidad?fechaInicio=X&fechaFin=Y
+router.get('/:id/disponibilidad', salonController.verificarDisponibilidadSalon);
+
+// Obtener detalles de un salón específico
+// GET /api/salon/:id (DEBE IR AL FINAL)
+router.get('/:id', salonController.obtenerSalonDetalle);
+
+// Crear nuevo salón (requiere autenticación de administrador)
+// POST /api/salon
+router.post('/', auth, salonController.crearSalon);
+
+// Actualizar salón (requiere autenticación de administrador)
+// PUT /api/salon/:id
+router.put('/:id', auth, salonController.actualizarSalon);
 
 module.exports = router;
