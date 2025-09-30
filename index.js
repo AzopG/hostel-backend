@@ -26,6 +26,7 @@ app.use('/api/reportes', require('./routes/reporte'));
 app.use('/api/calendario', require('./routes/calendario'));
 app.use('/api/filtros', require('./routes/filtros'));
 app.use('/api/inventario', require('./routes/inventario'));
+app.use('/api/comprobantes', require('./routes/comprobante')); // HU11
 
 const PORT = process.env.PORT || 4000;
 

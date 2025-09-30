@@ -61,6 +61,30 @@ const reservaSchema = new mongoose.Schema({
   // Eventos empresariales (opcional)
   asistentes: [{ type: String }],
   
+  // HU09: Historial de modificaciones
+  historialModificaciones: [{
+    fechaModificacion: { type: Date, default: Date.now },
+    fechaInicioAnterior: { type: Date },
+    fechaFinAnterior: { type: Date },
+    fechaInicioNueva: { type: Date },
+    fechaFinNueva: { type: Date },
+    tarifaAnterior: { type: Number },
+    tarifaNueva: { type: Number },
+    motivoRechazo: { type: String }
+  }],
+  
+  // HU10: Información de cancelación
+  cancelacion: {
+    fechaCancelacion: { type: Date },
+    motivo: { type: String },
+    realizadaPor: { type: String }, // 'cliente' o 'hotel'
+    penalizacion: { type: Number, default: 0 }, // Monto de penalización
+    reembolso: { type: Number }, // Monto a reembolsar
+    dentroVentanaGratuita: { type: Boolean }, // CA1: Si fue dentro de ventana gratuita
+    horasAntesCancelacion: { type: Number }, // Horas antes del check-in
+    notificacionEnviada: { type: Boolean, default: false } // CA4: Email enviado
+  },
+  
   // Metadata
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

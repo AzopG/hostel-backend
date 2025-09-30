@@ -4,21 +4,8 @@ const Reserva = require('../models/Reserva');
 const { auth } = require('../middleware/auth');
 const reservaController = require('../controllers/reservaController');
 
-// Consultar reservas por usuario, hotel, estado, fechas
-router.get('/', auth, async (req, res) => {
-  try {
-    const { usuario, hotel, estado, fechaInicio, fechaFin } = req.query;
-    const filtro = {};
-    if (usuario) filtro.usuario = usuario;
-    if (hotel) filtro.hotel = hotel;
-    if (estado) filtro.estado = estado;
-    if (fechaInicio && fechaFin) filtro.fechaInicio = { $gte: fechaInicio, $lte: fechaFin };
-    const reservas = await Reserva.find(filtro).populate('usuario hotel habitacion salon paquete');
-    res.json(reservas);
-  } catch (err) {
-    res.status(500).json({ msg: 'Error al obtener reservas', error: err.message });
-  }
-});
+// Obtener todas las reservas (usar el controller)
+router.get('/', reservaController.obtenerTodasReservas);
 
 // HU08: Obtener reserva por código (acceso público)
 router.get('/codigo/:codigo', reservaController.obtenerReservaPorCodigo);
@@ -26,7 +13,16 @@ router.get('/codigo/:codigo', reservaController.obtenerReservaPorCodigo);
 // HU08 CA1 + CA2: Crear reserva (SIN auth para huéspedes no registrados)
 router.post('/', reservaController.crearReserva);
 
-// Cancelar reserva
-router.put('/cancelar/:id', auth, reservaController.cancelarReserva);
+// HU10 CA2: Verificar políticas de cancelación antes de cancelar
+router.get('/cancelar/:id/verificar', reservaController.verificarPoliticasCancelacion);
+
+// HU10: Cancelar reserva (CA1 + CA2 + CA3 + CA4)
+router.put('/cancelar/:id', reservaController.cancelarReserva);
+
+// HU09: Verificar si puede modificar (CA1 + CA4)
+router.get('/:id/puede-modificar', reservaController.verificarPuedeModificar);
+
+// HU09: Modificar fechas de reserva (CA1 + CA2 + CA3 + CA4)
+router.put('/:id/modificar-fechas', reservaController.modificarFechasReserva);
 
 module.exports = router;
