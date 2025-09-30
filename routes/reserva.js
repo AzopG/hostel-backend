@@ -20,8 +20,11 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Crear reserva con lógica de inventario
-router.post('/', auth, reservaController.crearReserva);
+// HU08: Obtener reserva por código (acceso público)
+router.get('/codigo/:codigo', reservaController.obtenerReservaPorCodigo);
+
+// HU08 CA1 + CA2: Crear reserva (SIN auth para huéspedes no registrados)
+router.post('/', reservaController.crearReserva);
 
 // Cancelar reserva
 router.put('/cancelar/:id', auth, reservaController.cancelarReserva);
