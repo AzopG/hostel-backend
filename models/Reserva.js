@@ -85,6 +85,24 @@ const reservaSchema = new mongoose.Schema({
     notificacionEnviada: { type: Boolean, default: false } // CA4: Email enviado
   },
   
+  // HU12: Notificaciones por email
+  notificaciones: {
+    confirmacionEnviada: { type: Boolean, default: false },
+    confirmacionFecha: { type: Date },
+    confirmacionMessageId: { type: String },
+    cancelacionEnviada: { type: Boolean, default: false },
+    cancelacionFecha: { type: Date },
+    cancelacionMessageId: { type: String }
+  },
+  
+  // HU12 CA2: Registro de incidentes de email
+  incidentesEmail: [{
+    tipo: { type: String, enum: ['ERROR_ENVIO_EMAIL', 'ERROR_ENVIO_EMAIL_CANCELACION'] },
+    fecha: { type: Date, default: Date.now },
+    detalle: { type: String },
+    email: { type: String }
+  }],
+  
   // Metadata
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

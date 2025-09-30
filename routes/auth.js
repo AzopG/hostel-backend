@@ -6,6 +6,9 @@ const { auth } = require('../middleware/auth');
 // Registro de usuario
 router.post('/register', authController.register);
 
+// HU13: Registro de cuenta empresarial
+router.post('/register-empresa', authController.registerEmpresa);
+
 // Login de usuario
 router.post('/login', authController.login);
 
@@ -18,5 +21,8 @@ router.put('/change-password', auth, authController.changePassword);
 // HU03: Recuperación de contraseña
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password/:token', authController.resetPassword);
+
+// HU12 CA3: Actualizar perfil (email, nombre, teléfono)
+router.put('/perfil', auth, authController.actualizarPerfil);
 
 module.exports = router;

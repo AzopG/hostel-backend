@@ -146,8 +146,66 @@ exports.crearReserva = async (req, res) => {
     await reserva.populate('habitacion');
     await reserva.populate('hotel');
 
-    // CA2: Respuesta con código de reserva
-    res.status(201).json({
+    // HU12 CA1: Enviar email de confirmación (sin bloquear la respuesta)
+    const { sendReservaConfirmacionEmail } = require('../config/email');
+    
+    // Ejecutar envío de email en segundo plano
+    sendReservaConfirmacionEmail({
+      email: reserva.datosHuesped.email,
+      nombre: reserva.datosHuesped.nombre,
+      apellido: reserva.datosHuesped.apellido,
+      codigoReserva: reserva.codigoReserva,
+      hotel: {
+        nombre: reserva.hotel.nombre,
+        ciudad: reserva.hotel.ciudad,
+        direccion: reserva.hotel.direccion,
+        telefono: reserva.hotel.telefono,
+        email: reserva.hotel.email
+      },
+      habitacion: {
+        tipo: reserva.habitacion.tipo,
+        numero: reserva.habitacion.numero
+      },
+      fechaInicio: reserva.fechaInicio,
+      fechaFin: reserva.fechaFin,
+      noches: reserva.noches,
+      huespedes: reserva.huespedes,
+      tarifa: reserva.tarifa,
+      checkInTime: reserva.hotel.checkInTime,
+      checkOutTime: reserva.hotel.checkOutTime,
+      politicas: reserva.hotel.politicas
+    })
+    .then(resultado => {
+      // CA1: Email enviado exitosamente
+      if (resultado.success) {
+        reserva.notificaciones = {
+          confirmacionEnviada: true,
+          confirmacionFecha: new Date(),
+          confirmacionMessageId: resultado.messageId
+        };
+        reserva.save();
+        console.log(`✅ Email de confirmación enviado para reserva ${reserva.codigoReserva}`);
+      }
+    })
+    .catch(err => {
+      // CA2: Error de envío - Registrar incidente
+      console.error(`❌ Error al enviar email de confirmación para ${reserva.codigoReserva}:`, err);
+      reserva.incidentesEmail = reserva.incidentesEmail || [];
+      reserva.incidentesEmail.push({
+        tipo: 'ERROR_ENVIO_EMAIL',
+        fecha: new Date(),
+        detalle: err.message,
+        email: reserva.datosHuesped.email
+      });
+      reserva.notificaciones = {
+        ...reserva.notificaciones,
+        confirmacionEnviada: false
+      };
+      reserva.save();
+    });
+
+    // CA2: Respuesta con código de reserva (incluye aviso si hay incidentes previos)
+    const respuesta = {
       success: true,
       message: '¡Reserva creada exitosamente!',
       reserva: {
@@ -175,7 +233,15 @@ exports.crearReserva = async (req, res) => {
         estado: reserva.estado,
         createdAt: reserva.createdAt
       }
-    });
+    };
+
+    // CA2: Agregar aviso sobre email si hay problemas conocidos
+    // (Este mensaje solo aparece si ya se intentó enviar y falló)
+    if (reserva.incidentesEmail && reserva.incidentesEmail.length > 0) {
+      respuesta.avisoEmail = 'No pudimos enviar el correo, verifique su comprobante en la plataforma';
+    }
+
+    res.status(201).json(respuesta);
 
   } catch (err) {
     console.error('Error al crear reserva:', err);
@@ -507,17 +573,59 @@ exports.cancelarReserva = async (req, res) => {
     
     await reserva.save();
 
-    // CA4: TODO - Enviar notificación por correo
-    // Por ahora simulamos el envío
-    try {
-      // await enviarCorreoCancelacion(reserva);
-      reserva.cancelacion.notificacionEnviada = true;
-      await reserva.save();
-      console.log(`[HU10 CA4] Email de cancelación enviado a: ${reserva.datosHuesped.email}`);
-    } catch (emailErr) {
-      console.error('Error al enviar email de cancelación:', emailErr);
-      // No fallar la cancelación si falla el email
-    }
+    // HU12 CA4: Enviar notificación por correo de cancelación
+    const { sendReservaCancelacionEmail } = require('../config/email');
+    
+    // Ejecutar envío de email en segundo plano
+    sendReservaCancelacionEmail({
+      email: reserva.datosHuesped.email,
+      nombre: reserva.datosHuesped.nombre,
+      apellido: reserva.datosHuesped.apellido,
+      codigoReserva: reserva.codigoReserva,
+      hotel: {
+        nombre: reserva.hotel.nombre,
+        ciudad: reserva.hotel.ciudad
+      },
+      habitacion: {
+        tipo: reserva.habitacion.tipo,
+        numero: reserva.habitacion.numero
+      },
+      fechaInicio: reserva.fechaInicio,
+      fechaFin: reserva.fechaFin,
+      fechaCancelacion: reserva.cancelacion.fechaCancelacion,
+      motivo: reserva.cancelacion.motivo,
+      penalizacion: montoPenalizacion,
+      reembolso: montoReembolso,
+      dentroVentanaGratuita,
+      tarifa: reserva.tarifa
+    })
+    .then(resultado => {
+      // CA4: Email de cancelación enviado exitosamente
+      if (resultado.success) {
+        reserva.cancelacion.notificacionEnviada = true;
+        reserva.notificaciones = {
+          ...reserva.notificaciones,
+          cancelacionEnviada: true,
+          cancelacionFecha: new Date(),
+          cancelacionMessageId: resultado.messageId
+        };
+        reserva.save();
+        console.log(`✅ Email de cancelación enviado para reserva ${reserva.codigoReserva}`);
+      }
+    })
+    .catch(err => {
+      // CA2: Error de envío - Registrar incidente
+      console.error(`❌ Error al enviar email de cancelación para ${reserva.codigoReserva}:`, err);
+      reserva.incidentesEmail = reserva.incidentesEmail || [];
+      reserva.incidentesEmail.push({
+        tipo: 'ERROR_ENVIO_EMAIL_CANCELACION',
+        fecha: new Date(),
+        detalle: err.message,
+        email: reserva.datosHuesped.email
+      });
+      reserva.cancelacion.notificacionEnviada = false;
+      reserva.save();
+    });
 
     // CA1: Mensaje según ventana
     const mensajeExito = dentroVentanaGratuita
