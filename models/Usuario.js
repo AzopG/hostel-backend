@@ -40,13 +40,11 @@ usuarioSchema.pre('save', function(next) {
 
 // Validación personalizada: si es empresa, debe tener razón social y NIT
 usuarioSchema.pre('save', function(next) {
-  if (this.tipo === 'empresa') {
-    if (!this.razonSocial) {
-      return next(new Error('La razón social es requerida para usuarios tipo empresa'));
-    }
-    if (!this.nit) {
-      return next(new Error('El NIT es requerido para usuarios tipo empresa'));
-    }
+  if (this.tipo === 'empresa' && !this.empresa) {
+    // Error claro para frontend
+    const err = new Error('La razón social es requerida para usuarios tipo empresa');
+    err.statusCode = 400; // Bad Request
+    return next(err);
   }
   next();
 });
