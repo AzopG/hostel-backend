@@ -286,55 +286,20 @@ exports.obtenerTodasReservas = async (req, res) => {
  */
 exports.obtenerMisReservas = async (req, res) => {
   try {
-    const { email, telefono } = req.query;
-    
-    // Construir filtro según parámetros disponibles
-    let filtro = {};
-    
-    if (email) {
-      filtro['datosHuesped.email'] = email;
-    } else if (telefono) {
-      filtro['datosHuesped.telefono'] = telefono;
-    } else {
-      // Si no hay filtros específicos, devolver reservas con datos válidos únicamente
-      // Esto evita mostrar reservas en blanco o sin sentido
-      filtro = {
-        'datosHuesped.nombre': { $exists: true, $ne: null, $ne: '' },
-        'datosHuesped.email': { $exists: true, $ne: null, $ne: '' },
-        'codigoReserva': { $exists: true, $ne: null, $ne: '' },
-        estado: { $in: ['confirmada', 'completada', 'cancelada'] } // Solo estados válidos
-      };
-    }
-
-    const reservas = await Reserva.find(filtro)
+    // Solo permitir reservas del usuario autenticado
+    const usuarioId = req.usuario.id;
+    const reservas = await Reserva.find({ usuario: usuarioId })
       .populate('habitacion', 'numero tipo capacidad servicios precio')
       .populate('hotel', 'nombre ciudad departamento direccion telefono email politicas')
-      .sort({ createdAt: -1 }) // Más recientes primero
-      .limit(20) // Limitar a 20 reservas más recientes
+      .sort({ createdAt: -1 })
+      .limit(20)
       .lean();
-
-    // Filtrar solo reservas con datos completos y válidos
-    const reservasCompletas = reservas.filter(reserva => 
-      reserva.datosHuesped && 
-      reserva.datosHuesped.nombre && 
-      reserva.datosHuesped.nombre.trim() !== '' &&
-      reserva.datosHuesped.email && 
-      reserva.datosHuesped.email.trim() !== '' &&
-      reserva.habitacion && 
-      reserva.hotel &&
-      reserva.codigoReserva &&
-      reserva.codigoReserva.trim() !== ''
-    );
-
-    console.log(`💼 Mis Reservas: Encontradas ${reservasCompletas.length} reservas válidas de ${reservas.length} totales`);
 
     res.json({
       success: true,
-      reservas: reservasCompletas,
-      total: reservasCompletas.length,
-      filtro: filtro
+      reservas,
+      total: reservas.length
     });
-
   } catch (err) {
     console.error('Error al obtener mis reservas:', err);
     res.status(500).json({

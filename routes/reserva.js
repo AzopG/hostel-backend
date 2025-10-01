@@ -8,7 +8,7 @@ const reservaController = require('../controllers/reservaController');
 router.get('/', reservaController.obtenerTodasReservas);
 
 // Obtener mis reservas (filtradas por usuario o parámetros)
-router.get('/mis-reservas', reservaController.obtenerMisReservas);
+router.get('/mis-reservas', auth, reservaController.obtenerMisReservas);
 
 // HU08: Obtener reserva por código (acceso público)
 router.get('/codigo/:codigo', reservaController.obtenerReservaPorCodigo);
