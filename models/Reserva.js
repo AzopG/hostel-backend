@@ -58,7 +58,66 @@ const reservaSchema = new mongoose.Schema({
   // Notas y solicitudes especiales
   notas: { type: String },
   
-  // Eventos empresariales (opcional)
+  // HU17: Información específica para eventos empresariales
+  datosEvento: {
+    nombreEvento: { type: String }, // CA1: Nombre del evento
+    tipoEvento: { type: String }, // Conferencia, Capacitación, etc.
+    horarioInicio: { type: String }, // CA1: Hora de inicio (ej: "09:00")
+    horarioFin: { type: String }, // CA1: Hora de fin (ej: "18:00")
+    responsable: { type: String }, // CA1: Nombre del responsable del evento
+    cargoResponsable: { type: String }, // Cargo del responsable
+    telefonoResponsable: { type: String }, // Teléfono de contacto
+    layoutSeleccionado: { type: String }, // CA1: Layout elegido (Teatro, Banquete, etc.)
+    capacidadLayout: { type: Number }, // Capacidad del layout seleccionado
+    serviciosAdicionales: [{ type: String }], // Catering, decoración, etc.
+    requiremientosEspeciales: { type: String } // Requerimientos adicionales
+  },
+  
+  // HU18: Información específica para paquetes corporativos
+  datosPaquete: {
+    esPaquete: { type: Boolean, default: false }, // CA1: Marca si es reserva de paquete
+    salon: { type: mongoose.Schema.Types.ObjectId, ref: 'Salon' }, // CA1: Salón del paquete
+    habitaciones: [{ // CA1: Habitaciones del paquete
+      habitacion: { type: mongoose.Schema.Types.ObjectId, ref: 'Habitacion' },
+      cantidad: { type: Number },
+      tipo: { type: String }
+    }],
+    catering: { // CA1: Información de catering
+      incluido: { type: Boolean, default: false },
+      tipoCatering: { type: String }, // Desayuno, Almuerzo, Cena, Coffee Break
+      numeroPersonas: { type: Number },
+      menuSeleccionado: { type: String },
+      restriccionesAlimentarias: { type: String },
+      costoTotal: { type: Number }
+    },
+    serviciosAdicionales: [{ // Servicios extra del paquete
+      nombre: { type: String },
+      descripcion: { type: String },
+      costo: { type: Number }
+    }],
+    // CA2: Validación de disponibilidad conjunta
+    validacionDisponibilidad: {
+      salonDisponible: { type: Boolean },
+      habitacionesDisponibles: { type: Boolean },
+      cateringDisponible: { type: Boolean },
+      todosDisponibles: { type: Boolean },
+      fechaValidacion: { type: Date }
+    },
+    // CA3: Registro de inconsistencias
+    inconsistencias: [{
+      componente: { type: String, enum: ['salon', 'habitaciones', 'catering'] },
+      motivo: { type: String },
+      fechaDeteccion: { type: Date, default: Date.now },
+      alternativaOfrecida: { type: String }
+    }],
+    // CA4: Código único de paquete
+    codigoPaquete: { type: String, unique: true, sparse: true, uppercase: true },
+    descuentoPaquete: { type: Number, default: 0 }, // Descuento por ser paquete (%)
+    totalSinDescuento: { type: Number },
+    totalConDescuento: { type: Number }
+  },
+  
+  // Eventos empresariales (opcional - legacy)
   asistentes: [{ type: String }],
   
   // HU09: Historial de modificaciones
@@ -130,6 +189,27 @@ reservaSchema.statics.generarCodigoReserva = async function() {
     // Verificar si ya existe
     const reservaExistente = await this.findOne({ codigoReserva: codigo });
     existe = !!reservaExistente;
+  }
+  
+  return codigo;
+};
+
+// HU18: Método estático para generar código de paquete único
+reservaSchema.statics.generarCodigoPaquete = async function() {
+  let codigo;
+  let existe = true;
+  
+  while (existe) {
+    // Generar código: PKG + 8 caracteres alfanuméricos
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    codigo = 'PKG';
+    for (let i = 0; i < 8; i++) {
+      codigo += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    // Verificar si ya existe
+    const paqueteExistente = await this.findOne({ 'datosPaquete.codigoPaquete': codigo });
+    existe = !!paqueteExistente;
   }
   
   return codigo;

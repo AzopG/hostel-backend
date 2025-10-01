@@ -354,6 +354,166 @@ exports.crearSalon = async (req, res) => {
 };
 
 /**
+ * HU16 - CA1: Obtener detalle completo de un salón
+ * Muestra toda la información del salón: capacidad, equipamiento, layouts, fotos, tarifas
+ */
+exports.obtenerDetalleSalon = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Buscar salón con información completa del hotel
+    const salon = await Salon.findById(id)
+      .populate('hotel', 'nombre ciudad direccion telefono email')
+      .lean();
+
+    if (!salon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      });
+    }
+
+    // CA1: Devolver toda la información del salón
+    res.status(200).json({
+      success: true,
+      salon: {
+        _id: salon._id,
+        nombre: salon.nombre,
+        descripcion: salon.descripcion,
+        
+        // Capacidad y layouts (CA3)
+        capacidad: salon.capacidad, // Capacidad máxima
+        layouts: salon.layouts || [], // Diferentes configuraciones
+        
+        // Equipamiento y servicios (CA1)
+        equipamiento: salon.equipamiento || [],
+        serviciosIncluidos: salon.serviciosIncluidos || [],
+        
+        // Información visual (CA1)
+        fotos: salon.fotos || [],
+        
+        // Tarifas (CA1)
+        precioPorDia: salon.precioPorDia,
+        
+        // Hotel asociado
+        hotel: salon.hotel,
+        
+        // Metadata
+        disponible: salon.disponible,
+        createdAt: salon.createdAt,
+        updatedAt: salon.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al obtener detalle del salón:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener detalle del salón',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * HU16 - CA2: Verificar disponibilidad del salón en fechas específicas
+ * Muestra si el salón está libre, parcialmente ocupado o totalmente bloqueado
+ */
+exports.verificarDisponibilidadDetallada = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fechaInicio, fechaFin } = req.query;
+
+    // Validación de parámetros
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan parámetros: fechaInicio y fechaFin son requeridos'
+      });
+    }
+
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Formato de fecha inválido'
+      });
+    }
+
+    if (inicio >= fin) {
+      return res.status(400).json({
+        success: false,
+        message: 'La fecha de inicio debe ser anterior a la fecha de fin'
+      });
+    }
+
+    // Verificar que el salón existe
+    const salon = await Salon.findById(id);
+    if (!salon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      });
+    }
+
+    // Buscar reservas confirmadas que se solapen con las fechas
+    const reservasEnRango = await Reserva.find({
+      salon: id,
+      estado: { $in: ['confirmada', 'pendiente'] },
+      $or: [
+        { fechaInicio: { $gte: inicio, $lt: fin } },
+        { fechaFin: { $gt: inicio, $lte: fin } },
+        { fechaInicio: { $lte: inicio }, fechaFin: { $gte: fin } }
+      ]
+    }).select('fechaInicio fechaFin estado usuario')
+      .populate('usuario', 'nombre email')
+      .lean();
+
+    // Determinar estado de disponibilidad (CA2)
+    let estadoDisponibilidad;
+    let mensaje;
+    
+    if (reservasEnRango.length === 0) {
+      estadoDisponibilidad = 'libre';
+      mensaje = 'El salón está completamente disponible en las fechas seleccionadas';
+    } else if (reservasEnRango.length === 1) {
+      estadoDisponibilidad = 'bloqueado';
+      mensaje = 'El salón no está disponible en las fechas seleccionadas';
+    } else {
+      estadoDisponibilidad = 'parcial';
+      mensaje = 'El salón tiene algunas fechas ocupadas en el rango seleccionado';
+    }
+
+    // CA2: Respuesta con estado detallado
+    res.status(200).json({
+      success: true,
+      disponibilidad: {
+        estado: estadoDisponibilidad, // 'libre', 'parcial', 'bloqueado'
+        mensaje,
+        fechaInicio: inicio,
+        fechaFin: fin,
+        reservasExistentes: reservasEnRango.length,
+        detalleReservas: reservasEnRango.map(r => ({
+          fechaInicio: r.fechaInicio,
+          fechaFin: r.fechaFin,
+          estado: r.estado
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Error al verificar disponibilidad:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al verificar disponibilidad',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Actualizar información de un salón
  */
 exports.actualizarSalon = async (req, res) => {

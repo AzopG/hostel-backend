@@ -25,4 +25,20 @@ router.get('/:id/puede-modificar', reservaController.verificarPuedeModificar);
 // HU09: Modificar fechas de reserva (CA1 + CA2 + CA3 + CA4)
 router.put('/:id/modificar-fechas', reservaController.modificarFechasReserva);
 
+// =====================================================
+// HU17: RESERVAR UN SALÓN
+// =====================================================
+
+// HU17 CA1: Iniciar reserva de salón - Obtener resumen y formulario
+router.post('/salones/:salonId/iniciar', reservaController.iniciarReservaSalon);
+
+// HU17 CA2: Verificar disponibilidad en tiempo real (prevenir conflictos)
+router.post('/salones/:salonId/verificar-disponibilidad', reservaController.verificarDisponibilidadSalonTiempoReal);
+
+// HU17 CA3: Confirmar reserva de salón (genera código y bloquea horario)
+router.post('/salones/:salonId/confirmar', reservaController.confirmarReservaSalon);
+
+// HU17 CA4: Obtener políticas de reserva de salones
+router.get('/salones/politicas/:hotelId?', reservaController.obtenerPoliticasReservaSalon);
+
 module.exports = router;

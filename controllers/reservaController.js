@@ -908,3 +908,607 @@ exports.verificarPuedeModificar = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// HU17: RESERVAR UN SALÓN
+// =====================================================
+
+/**
+ * HU17 CA1: Iniciar reserva de salón
+ * Muestra resumen del salón y formulario para datos del evento
+ */
+exports.iniciarReservaSalon = async (req, res) => {
+  try {
+    const { salonId } = req.params;
+    const { fechaInicio, fechaFin, layoutId } = req.body;
+
+    // Validaciones básicas
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debe proporcionar fechaInicio y fechaFin'
+      });
+    }
+
+    // Obtener información del salón
+    const salon = await Salon.findById(salonId).populate('hotel');
+    
+    if (!salon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      });
+    }
+
+    // Validar que el salón esté disponible
+    if (!salon.disponible) {
+      return res.status(400).json({
+        success: false,
+        message: 'Este salón no está disponible actualmente'
+      });
+    }
+
+    // Buscar el layout seleccionado (si se proporcionó)
+    let layoutSeleccionado = null;
+    if (layoutId && salon.layouts && salon.layouts.length > 0) {
+      layoutSeleccionado = salon.layouts.find(
+        layout => layout._id.toString() === layoutId
+      );
+    }
+
+    // Calcular días de reserva
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    const dias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
+
+    // Calcular tarifa estimada
+    const tarifaEstimada = {
+      precioPorDia: salon.precio || 500000,
+      dias: dias,
+      subtotal: (salon.precio || 500000) * dias,
+      impuestos: Math.round((salon.precio || 500000) * dias * 0.19),
+      total: (salon.precio || 500000) * dias + Math.round((salon.precio || 500000) * dias * 0.19),
+      moneda: 'COP'
+    };
+
+    // CA1: Respuesta con resumen del salón y tarifa
+    res.json({
+      success: true,
+      message: 'Salón disponible para reserva',
+      salon: {
+        _id: salon._id,
+        nombre: salon.nombre,
+        capacidad: salon.capacidad,
+        area: salon.area,
+        precio: salon.precio,
+        equipamiento: salon.equipamiento,
+        imagenes: salon.imagenes,
+        descripcion: salon.descripcion,
+        hotel: {
+          _id: salon.hotel._id,
+          nombre: salon.hotel.nombre,
+          ciudad: salon.hotel.ciudad,
+          direccion: salon.hotel.direccion,
+          telefono: salon.hotel.telefono,
+          email: salon.hotel.email
+        },
+        layouts: salon.layouts
+      },
+      layoutSeleccionado: layoutSeleccionado,
+      fechas: {
+        inicio: fechaInicio,
+        fin: fechaFin,
+        dias: dias
+      },
+      tarifaEstimada: tarifaEstimada,
+      formulario: {
+        campos: [
+          'nombreEvento',
+          'tipoEvento',
+          'horarioInicio',
+          'horarioFin',
+          'responsable',
+          'cargoResponsable',
+          'telefonoResponsable'
+        ]
+      }
+    });
+
+  } catch (err) {
+    console.error('Error al iniciar reserva de salón:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al iniciar reserva de salón',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * HU17 CA2: Verificar disponibilidad en tiempo real
+ * Previene conflictos con otras reservas simultáneas
+ */
+exports.verificarDisponibilidadSalonTiempoReal = async (req, res) => {
+  try {
+    const { salonId } = req.params;
+    const { fechaInicio, fechaFin, horarioInicio, horarioFin } = req.body;
+
+    // Validaciones
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debe proporcionar fechaInicio y fechaFin'
+      });
+    }
+
+    const salon = await Salon.findById(salonId);
+    
+    if (!salon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      });
+    }
+
+    // CA2: Buscar reservas que se solapen con las fechas/horarios solicitados
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+
+    const reservasConflicto = await Reserva.find({
+      salon: salonId,
+      estado: { $in: ['confirmada', 'pendiente'] },
+      $or: [
+        {
+          fechaInicio: { $lte: fin },
+          fechaFin: { $gte: inicio }
+        }
+      ]
+    });
+
+    // Si hay horarios específicos, verificar solapamiento detallado
+    let disponible = reservasConflicto.length === 0;
+    let motivoConflicto = null;
+    let reservasEnConflicto = [];
+
+    if (reservasConflicto.length > 0) {
+      // CA2: Analizar cada conflicto
+      for (const reserva of reservasConflicto) {
+        // Si las fechas son exactamente las mismas, verificar horarios
+        if (horarioInicio && horarioFin && 
+            reserva.datosEvento && 
+            reserva.datosEvento.horarioInicio && 
+            reserva.datosEvento.horarioFin) {
+          
+          // Comparar horarios (formato "HH:MM")
+          const horaSolicitadaInicio = horarioInicio.replace(':', '');
+          const horaSolicitadaFin = horarioFin.replace(':', '');
+          const horaReservaInicio = reserva.datosEvento.horarioInicio.replace(':', '');
+          const horaReservaFin = reserva.datosEvento.horarioFin.replace(':', '');
+
+          // Verificar solapamiento de horarios
+          if (!(horaSolicitadaFin <= horaReservaInicio || horaSolicitadaInicio >= horaReservaFin)) {
+            disponible = false;
+            reservasEnConflicto.push({
+              codigoReserva: reserva.codigoReserva,
+              fechaInicio: reserva.fechaInicio,
+              fechaFin: reserva.fechaFin,
+              horarioInicio: reserva.datosEvento.horarioInicio,
+              horarioFin: reserva.datosEvento.horarioFin,
+              evento: reserva.datosEvento.nombreEvento
+            });
+          }
+        } else {
+          // Sin horarios detallados, asumimos conflicto por fecha
+          disponible = false;
+          reservasEnConflicto.push({
+            codigoReserva: reserva.codigoReserva,
+            fechaInicio: reserva.fechaInicio,
+            fechaFin: reserva.fechaFin
+          });
+        }
+      }
+
+      if (!disponible) {
+        motivoConflicto = reservasEnConflicto.length > 1
+          ? `Hay ${reservasEnConflicto.length} reservas confirmadas que se solapan con las fechas/horarios solicitados`
+          : 'Hay otra reserva confirmada que se solapa con las fechas/horarios solicitados';
+      }
+    }
+
+    // CA2: Respuesta según disponibilidad
+    if (!disponible) {
+      return res.status(409).json({
+        success: false,
+        disponible: false,
+        conflicto: true,
+        message: 'El salón ya no está disponible para las fechas/horarios seleccionados',
+        motivo: motivoConflicto,
+        reservasEnConflicto: reservasEnConflicto,
+        sugerencia: 'Otro usuario realizó una reserva mientras completabas el formulario. Por favor, regresa a la búsqueda para encontrar otras opciones.'
+      });
+    }
+
+    // Disponible
+    res.json({
+      success: true,
+      disponible: true,
+      message: 'El salón está disponible para las fechas/horarios seleccionados',
+      salon: {
+        _id: salon._id,
+        nombre: salon.nombre
+      },
+      fechas: {
+        inicio: fechaInicio,
+        fin: fechaFin,
+        horarioInicio: horarioInicio || 'Todo el día',
+        horarioFin: horarioFin || 'Todo el día'
+      }
+    });
+
+  } catch (err) {
+    console.error('Error al verificar disponibilidad en tiempo real:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al verificar disponibilidad',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * HU17 CA3: Confirmar reserva de salón
+ * Genera código de reserva y bloquea el horario
+ * CA4: Valida que se hayan aceptado las políticas
+ */
+exports.confirmarReservaSalon = async (req, res) => {
+  try {
+    const { salonId } = req.params;
+    const {
+      usuario, // Opcional para empresas sin cuenta
+      fechaInicio,
+      fechaFin,
+      datosEvento, // CA1: Datos del evento
+      datosContacto, // Datos de quien reserva
+      politicasAceptadas, // CA4: Aceptación de políticas
+      notas
+    } = req.body;
+
+    // Validaciones básicas
+    if (!fechaInicio || !fechaFin || !datosEvento || !datosContacto) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan datos requeridos: fechaInicio, fechaFin, datosEvento, datosContacto'
+      });
+    }
+
+    // CA1: Validar datos del evento
+    if (!datosEvento.nombreEvento || !datosEvento.horarioInicio || 
+        !datosEvento.horarioFin || !datosEvento.responsable) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan datos del evento: nombreEvento, horarioInicio, horarioFin, responsable'
+      });
+    }
+
+    // CA4: Validar que se aceptaron las políticas
+    if (!politicasAceptadas) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debe aceptar las políticas de reserva para continuar'
+      });
+    }
+
+    // Validar fechas
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    
+    if (inicio >= fin) {
+      return res.status(400).json({
+        success: false,
+        message: 'La fecha de fin debe ser posterior a la fecha de inicio'
+      });
+    }
+
+    // Obtener el salón
+    const salon = await Salon.findById(salonId).populate('hotel');
+    
+    if (!salon) {
+      return res.status(404).json({
+        success: false,
+        message: 'Salón no encontrado'
+      });
+    }
+
+    // CA2: VALIDACIÓN FINAL DE DISPONIBILIDAD (prevenir conflictos de concurrencia)
+    const reservasConflicto = await Reserva.find({
+      salon: salonId,
+      estado: { $in: ['confirmada', 'pendiente'] },
+      $or: [
+        {
+          fechaInicio: { $lte: fin },
+          fechaFin: { $gte: inicio }
+        }
+      ]
+    });
+
+    if (reservasConflicto.length > 0) {
+      // CA2: Conflicto detectado justo antes de confirmar
+      return res.status(409).json({
+        success: false,
+        message: 'Lo sentimos, el salón ya no está disponible para las fechas seleccionadas',
+        conflicto: true,
+        motivo: 'Otro usuario confirmó una reserva mientras completabas el proceso',
+        sugerencia: 'Por favor, regresa a la búsqueda para encontrar otras opciones'
+      });
+    }
+
+    // Calcular días
+    const dias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
+
+    // CA3: Generar código de reserva único
+    const codigoReserva = await Reserva.generarCodigoReserva();
+
+    // Calcular tarifa
+    const precioPorDia = salon.precio || 500000;
+    const subtotal = precioPorDia * dias;
+    const impuestos = Math.round(subtotal * 0.19);
+    const total = subtotal + impuestos;
+
+    // Buscar el layout seleccionado
+    let layoutSeleccionado = null;
+    let capacidadLayout = null;
+    if (datosEvento.layoutSeleccionado && salon.layouts && salon.layouts.length > 0) {
+      const layout = salon.layouts.find(l => l.nombre === datosEvento.layoutSeleccionado);
+      if (layout) {
+        layoutSeleccionado = layout.nombre;
+        capacidadLayout = layout.capacidad;
+      }
+    }
+
+    // CA3: Crear la reserva de salón
+    const reserva = new Reserva({
+      usuario: usuario || null,
+      hotel: salon.hotel._id,
+      salon: salonId, // Campo específico para salones
+      fechaInicio: inicio,
+      fechaFin: fin,
+      noches: 0, // N/A para salones
+      codigoReserva,
+      datosHuesped: {
+        nombre: datosContacto.nombre,
+        apellido: datosContacto.apellido || '',
+        email: datosContacto.email,
+        telefono: datosContacto.telefono,
+        documento: datosContacto.documento || '',
+        pais: datosContacto.pais || 'Colombia',
+        ciudad: datosContacto.ciudad || ''
+      },
+      datosEvento: {
+        nombreEvento: datosEvento.nombreEvento,
+        tipoEvento: datosEvento.tipoEvento || 'Corporativo',
+        horarioInicio: datosEvento.horarioInicio,
+        horarioFin: datosEvento.horarioFin,
+        responsable: datosEvento.responsable,
+        cargoResponsable: datosEvento.cargoResponsable || '',
+        telefonoResponsable: datosEvento.telefonoResponsable || datosContacto.telefono,
+        layoutSeleccionado: layoutSeleccionado,
+        capacidadLayout: capacidadLayout,
+        serviciosAdicionales: datosEvento.serviciosAdicionales || [],
+        requiremientosEspeciales: datosEvento.requiremientosEspeciales || ''
+      },
+      tarifa: {
+        precioPorNoche: 0, // N/A para salones
+        precioPorDia: precioPorDia,
+        dias: dias,
+        subtotal: subtotal,
+        impuestos: impuestos,
+        total: total,
+        moneda: 'COP'
+      },
+      estado: 'confirmada',
+      politicasAceptadas: true,
+      fechaPoliticasAceptadas: new Date(),
+      notas: notas || ''
+    });
+
+    await reserva.save();
+
+    // Poblar datos para la respuesta
+    await reserva.populate('salon');
+    await reserva.populate('hotel');
+
+    // CA3: Enviar email de confirmación (sin bloquear respuesta)
+    const { sendReservaSalonConfirmacionEmail } = require('../config/email');
+    
+    sendReservaSalonConfirmacionEmail({
+      email: reserva.datosHuesped.email,
+      nombre: reserva.datosHuesped.nombre,
+      apellido: reserva.datosHuesped.apellido,
+      codigoReserva: reserva.codigoReserva,
+      hotel: {
+        nombre: reserva.hotel.nombre,
+        ciudad: reserva.hotel.ciudad,
+        direccion: reserva.hotel.direccion,
+        telefono: reserva.hotel.telefono,
+        email: reserva.hotel.email
+      },
+      salon: {
+        nombre: reserva.salon.nombre,
+        capacidad: reserva.salon.capacidad,
+        area: reserva.salon.area
+      },
+      evento: reserva.datosEvento,
+      fechaInicio: reserva.fechaInicio,
+      fechaFin: reserva.fechaFin,
+      dias: dias,
+      tarifa: reserva.tarifa
+    })
+    .then(resultado => {
+      if (resultado.success) {
+        reserva.notificaciones = {
+          confirmacionEnviada: true,
+          confirmacionFecha: new Date(),
+          confirmacionMessageId: resultado.messageId
+        };
+        reserva.save();
+        console.log(`✅ Email de confirmación enviado para reserva de salón ${reserva.codigoReserva}`);
+      }
+    })
+    .catch(err => {
+      console.error(`❌ Error al enviar email de confirmación:`, err);
+      reserva.incidentesEmail = reserva.incidentesEmail || [];
+      reserva.incidentesEmail.push({
+        tipo: 'ERROR_ENVIO_EMAIL',
+        fecha: new Date(),
+        detalle: err.message,
+        email: reserva.datosHuesped.email
+      });
+      reserva.save();
+    });
+
+    // CA3: Respuesta con código de reserva
+    res.status(201).json({
+      success: true,
+      message: '¡Reserva de salón confirmada exitosamente!',
+      reserva: {
+        _id: reserva._id,
+        codigoReserva: reserva.codigoReserva,
+        datosHuesped: reserva.datosHuesped,
+        datosEvento: reserva.datosEvento,
+        salon: {
+          _id: reserva.salon._id,
+          nombre: reserva.salon.nombre,
+          capacidad: reserva.salon.capacidad,
+          equipamiento: reserva.salon.equipamiento
+        },
+        hotel: {
+          _id: reserva.hotel._id,
+          nombre: reserva.hotel.nombre,
+          ciudad: reserva.hotel.ciudad,
+          direccion: reserva.hotel.direccion,
+          telefono: reserva.hotel.telefono
+        },
+        fechaInicio: reserva.fechaInicio,
+        fechaFin: reserva.fechaFin,
+        dias: dias,
+        tarifa: reserva.tarifa,
+        estado: reserva.estado,
+        createdAt: reserva.createdAt
+      }
+    });
+
+  } catch (err) {
+    console.error('Error al confirmar reserva de salón:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al confirmar la reserva',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * HU17 CA4: Obtener políticas de reserva de salones
+ * Muestra condiciones antes de confirmar
+ */
+exports.obtenerPoliticasReservaSalon = async (req, res) => {
+  try {
+    const { hotelId } = req.params;
+
+    // Si se proporciona hotelId, obtener políticas específicas
+    let politicasHotel = null;
+    if (hotelId) {
+      const hotel = await Hotel.findById(hotelId);
+      if (hotel && hotel.politicas) {
+        politicasHotel = hotel.politicas;
+      }
+    }
+
+    // CA4: Políticas de reserva de salones
+    const politicas = {
+      cancelacion: {
+        titulo: 'Política de Cancelación',
+        ventanaGratuita: {
+          plazo: '48 horas',
+          penalizacion: '0%',
+          descripcion: 'Cancelación gratuita con más de 48 horas de anticipación. Se reembolsa el 100% del monto pagado.'
+        },
+        ventanaParcial: {
+          plazo: '24-48 horas',
+          penalizacion: '50%',
+          descripcion: 'Cancelación entre 24 y 48 horas antes del evento. Se aplica penalización del 50%.'
+        },
+        ventanaTotal: {
+          plazo: 'Menos de 24 horas',
+          penalizacion: '100%',
+          descripcion: 'Cancelación con menos de 24 horas. Se aplica penalización del 100%. No hay reembolso.'
+        }
+      },
+      modificacion: {
+        titulo: 'Política de Modificación',
+        descripcion: 'Las modificaciones de fecha/horario están sujetas a disponibilidad y deben realizarse con al menos 24 horas de anticipación.',
+        restricciones: [
+          'Solo se permite 1 modificación sin costo',
+          'Modificaciones adicionales tienen un cargo del 10% del valor',
+          'No se permiten modificaciones con menos de 24 horas'
+        ]
+      },
+      uso: {
+        titulo: 'Condiciones de Uso',
+        normas: [
+          'El horario de uso debe respetarse estrictamente',
+          'La capacidad máxima del layout seleccionado no debe excederse',
+          'Se debe mantener el orden y limpieza del salón',
+          'No se permite fumar dentro de las instalaciones',
+          'El montaje y desmontaje deben hacerse en los horarios acordados'
+        ]
+      },
+      servicios: {
+        titulo: 'Servicios Incluidos',
+        incluidos: [
+          'Uso del equipamiento básico (proyector, pantalla, sonido)',
+          'WiFi de alta velocidad',
+          'Aire acondicionado',
+          'Servicio de limpieza',
+          'Soporte técnico básico'
+        ],
+        adicionales: [
+          'Catering (bajo cotización)',
+          'Decoración especial (bajo cotización)',
+          'Equipo audiovisual adicional (bajo cotización)',
+          'Personal de apoyo extra (bajo cotización)'
+        ]
+      },
+      pago: {
+        titulo: 'Política de Pago',
+        descripcion: 'Se requiere el pago del 100% para confirmar la reserva.',
+        formasPago: ['Transferencia bancaria', 'Tarjeta de crédito', 'PSE'],
+        notasImportantes: [
+          'Los precios incluyen IVA (19%)',
+          'Las reservas están sujetas a disponibilidad',
+          'El código de reserva es único e intransferible'
+        ]
+      }
+    };
+
+    // Agregar políticas específicas del hotel si existen
+    if (politicasHotel) {
+      politicas.hotelEspecificas = politicasHotel;
+    }
+
+    res.json({
+      success: true,
+      politicas: politicas,
+      actualizacion: new Date(),
+      version: '1.0'
+    });
+
+  } catch (err) {
+    console.error('Error al obtener políticas:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener políticas de reserva',
+      error: err.message
+    });
+  }
+};

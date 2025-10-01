@@ -14,6 +14,14 @@ const salonSchema = new mongoose.Schema({
   serviciosIncluidos: [String], // WiFi, aire acondicionado, estacionamiento, etc.
   fotos: [String], // URLs de fotos
   
+  // HU16: Layouts con capacidad por configuración
+  layouts: [{
+    nombre: { type: String, required: true }, // Ej: "Teatro", "Banquete", "Escuela"
+    capacidad: { type: Number, required: true },
+    descripcion: String,
+    imagen: String // URL de imagen del layout
+  }],
+  
   // Metadata
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

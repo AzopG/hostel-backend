@@ -1183,9 +1183,265 @@ Sistema Hotelero
   }
 };
 
+/**
+ * HU17: Enviar email de confirmación de reserva de salón
+ */
+const sendReservaSalonConfirmacionEmail = async (reservaData) => {
+  try {
+    const {
+      email,
+      nombre,
+      apellido,
+      codigoReserva,
+      hotel,
+      salon,
+      evento,
+      fechaInicio,
+      fechaFin,
+      dias,
+      tarifa
+    } = reservaData;
+
+    // Formatear fechas
+    const opciones = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'America/Bogota'
+    };
+    const fechaInicioFormato = new Date(fechaInicio).toLocaleDateString('es-CO', opciones);
+    const fechaFinFormato = new Date(fechaFin).toLocaleDateString('es-CO', opciones);
+
+    // Formatear precios
+    const formatearPrecio = (precio) => {
+      return new Intl.NumberFormat('es-CO', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(precio);
+    };
+
+    // Generar HTML del email
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; margin: 0; padding: 0; }
+          .email-container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; }
+          .header p { margin: 5px 0 0 0; font-size: 14px; opacity: 0.9; }
+          .content { padding: 30px; }
+          .codigo-reserva { background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .codigo-reserva h2 { margin: 0 0 10px 0; color: #667eea; font-size: 18px; }
+          .codigo-reserva .codigo { font-size: 28px; font-weight: bold; color: #333; letter-spacing: 2px; }
+          .info-section { margin: 25px 0; }
+          .info-section h3 { color: #667eea; font-size: 16px; margin-bottom: 10px; border-bottom: 2px solid #667eea; padding-bottom: 5px; }
+          .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+          .info-row:last-child { border-bottom: none; }
+          .info-label { font-weight: 600; color: #555; }
+          .info-value { color: #333; }
+          .event-highlight { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .event-highlight h4 { margin: 0 0 10px 0; color: #856404; }
+          .total-section { background-color: #e9ecef; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .total-row { display: flex; justify-content: space-between; padding: 5px 0; }
+          .total-final { font-size: 20px; font-weight: bold; color: #667eea; padding-top: 10px; border-top: 2px solid #667eea; margin-top: 10px; }
+          .alert-box { background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; padding: 15px; margin: 20px 0; color: #0c5460; }
+          .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }
+          .footer a { color: #667eea; text-decoration: none; }
+          @media only screen and (max-width: 600px) {
+            .email-container { margin: 0; border-radius: 0; }
+            .content { padding: 20px; }
+            .info-row { flex-direction: column; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <!-- Header -->
+          <div class="header">
+            <h1>✅ Reserva de Salón Confirmada</h1>
+            <p>Tu evento está asegurado</p>
+          </div>
+
+          <!-- Content -->
+          <div class="content">
+            <p>Hola <strong>${nombre} ${apellido}</strong>,</p>
+            
+            <p>¡Excelente noticia! Tu reserva de salón ha sido confirmada exitosamente.</p>
+
+            <!-- Código de Reserva -->
+            <div class="codigo-reserva">
+              <h2>📋 Código de Reserva</h2>
+              <div class="codigo">${codigoReserva}</div>
+              <p style="margin: 10px 0 0 0; font-size: 13px; color: #6c757d;">
+                Guarda este código. Lo necesitarás para cualquier consulta sobre tu reserva.
+              </p>
+            </div>
+
+            <!-- Información del Evento -->
+            <div class="event-highlight">
+              <h4>🎯 Información del Evento</h4>
+              <p><strong>Evento:</strong> ${evento.nombreEvento}</p>
+              <p><strong>Tipo:</strong> ${evento.tipoEvento || 'Corporativo'}</p>
+              <p><strong>Responsable:</strong> ${evento.responsable}</p>
+              ${evento.cargoResponsable ? `<p><strong>Cargo:</strong> ${evento.cargoResponsable}</p>` : ''}
+              <p><strong>Horario:</strong> ${evento.horarioInicio} - ${evento.horarioFin}</p>
+              ${evento.layoutSeleccionado ? `<p><strong>Layout:</strong> ${evento.layoutSeleccionado} (${evento.capacidadLayout} personas)</p>` : ''}
+            </div>
+
+            <!-- Información del Salón -->
+            <div class="info-section">
+              <h3>🏢 Información del Salón</h3>
+              <div class="info-row">
+                <span class="info-label">Salón:</span>
+                <span class="info-value">${salon.nombre}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Capacidad:</span>
+                <span class="info-value">${salon.capacidad} personas</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Área:</span>
+                <span class="info-value">${salon.area} m²</span>
+              </div>
+            </div>
+
+            <!-- Información del Hotel -->
+            <div class="info-section">
+              <h3>🏨 Información del Hotel</h3>
+              <div class="info-row">
+                <span class="info-label">Hotel:</span>
+                <span class="info-value">${hotel.nombre}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Ciudad:</span>
+                <span class="info-value">${hotel.ciudad}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Dirección:</span>
+                <span class="info-value">${hotel.direccion}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Teléfono:</span>
+                <span class="info-value">${hotel.telefono}</span>
+              </div>
+            </div>
+
+            <!-- Fechas -->
+            <div class="info-section">
+              <h3>📅 Fechas del Evento</h3>
+              <div class="info-row">
+                <span class="info-label">Fecha de inicio:</span>
+                <span class="info-value">${fechaInicioFormato}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Fecha de fin:</span>
+                <span class="info-value">${fechaFinFormato}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Duración:</span>
+                <span class="info-value">${dias} día${dias > 1 ? 's' : ''}</span>
+              </div>
+            </div>
+
+            <!-- Resumen de Tarifa -->
+            <div class="total-section">
+              <h3 style="margin-top: 0; color: #495057;">💳 Resumen de Pago</h3>
+              <div class="total-row">
+                <span>Subtotal (${dias} día${dias > 1 ? 's' : ''}):</span>
+                <span>$${formatearPrecio(tarifa.subtotal)} COP</span>
+              </div>
+              <div class="total-row">
+                <span>Impuestos (IVA 19%):</span>
+                <span>$${formatearPrecio(tarifa.impuestos)} COP</span>
+              </div>
+              <div class="total-row total-final">
+                <span>TOTAL:</span>
+                <span>$${formatearPrecio(tarifa.total)} COP</span>
+              </div>
+            </div>
+
+            <!-- Recordatorio -->
+            <div class="alert-box">
+              <strong>📌 Recordatorio:</strong><br>
+              • Llega con 30 minutos de anticipación para el montaje<br>
+              • Respeta el horario acordado: ${evento.horarioInicio} - ${evento.horarioFin}<br>
+              • El equipamiento básico está incluido<br>
+              • Para servicios adicionales, contacta al hotel con anticipación
+            </div>
+
+            <p style="margin-top: 25px;">
+              Si tienes alguna pregunta o necesitas realizar cambios, por favor contacta al hotel directamente:
+            </p>
+            <p style="margin: 5px 0;">
+              📞 <strong>Teléfono:</strong> ${hotel.telefono}<br>
+              📧 <strong>Email:</strong> ${hotel.email || 'reservas@hotel.com'}
+            </p>
+
+            <p style="margin-top: 25px; color: #667eea; font-weight: 600;">
+              ¡Gracias por elegirnos para tu evento! Estamos seguros de que será todo un éxito. 🎉
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div class="footer">
+            <p>Este es un correo automático. Por favor no respondas a este mensaje.</p>
+            <p>© ${new Date().getFullYear()} ${hotel.nombre}. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Configurar transporte de Nodemailer
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER || 'tu_email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'tu_contraseña_app'
+      }
+    });
+
+    // Configurar opciones del email
+    const mailOptions = {
+      from: `"${hotel.nombre}" <${process.env.EMAIL_USER || 'noreply@hotel.com'}>`,
+      to: email,
+      subject: `✅ Reserva Confirmada: ${evento.nombreEvento} - Código ${codigoReserva}`,
+      html: htmlContent
+    };
+
+    // Enviar email
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log(`✅ Email de confirmación de salón enviado a ${email}`);
+
+    return {
+      success: true,
+      messageId: info.messageId,
+      destinatario: email
+    };
+
+  } catch (error) {
+    console.error('❌ Error al enviar email de confirmación de salón:', error);
+    return {
+      success: false,
+      error: error.message,
+      detalle: {
+        codigo: error.code || 'UNKNOWN_ERROR',
+        detalle: error.message
+      }
+    };
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
   sendReservaConfirmacionEmail,
-  sendReservaCancelacionEmail
+  sendReservaCancelacionEmail,
+  sendReservaSalonConfirmacionEmail
 };
