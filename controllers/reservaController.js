@@ -282,6 +282,70 @@ exports.obtenerTodasReservas = async (req, res) => {
 };
 
 /**
+ * Obtener mis reservas (filtradas por usuario)
+ */
+exports.obtenerMisReservas = async (req, res) => {
+  try {
+    const { email, telefono } = req.query;
+    
+    // Construir filtro según parámetros disponibles
+    let filtro = {};
+    
+    if (email) {
+      filtro['datosHuesped.email'] = email;
+    } else if (telefono) {
+      filtro['datosHuesped.telefono'] = telefono;
+    } else {
+      // Si no hay filtros específicos, devolver reservas con datos válidos únicamente
+      // Esto evita mostrar reservas en blanco o sin sentido
+      filtro = {
+        'datosHuesped.nombre': { $exists: true, $ne: null, $ne: '' },
+        'datosHuesped.email': { $exists: true, $ne: null, $ne: '' },
+        'codigoReserva': { $exists: true, $ne: null, $ne: '' },
+        estado: { $in: ['confirmada', 'completada', 'cancelada'] } // Solo estados válidos
+      };
+    }
+
+    const reservas = await Reserva.find(filtro)
+      .populate('habitacion', 'numero tipo capacidad servicios precio')
+      .populate('hotel', 'nombre ciudad departamento direccion telefono email politicas')
+      .sort({ createdAt: -1 }) // Más recientes primero
+      .limit(20) // Limitar a 20 reservas más recientes
+      .lean();
+
+    // Filtrar solo reservas con datos completos y válidos
+    const reservasCompletas = reservas.filter(reserva => 
+      reserva.datosHuesped && 
+      reserva.datosHuesped.nombre && 
+      reserva.datosHuesped.nombre.trim() !== '' &&
+      reserva.datosHuesped.email && 
+      reserva.datosHuesped.email.trim() !== '' &&
+      reserva.habitacion && 
+      reserva.hotel &&
+      reserva.codigoReserva &&
+      reserva.codigoReserva.trim() !== ''
+    );
+
+    console.log(`💼 Mis Reservas: Encontradas ${reservasCompletas.length} reservas válidas de ${reservas.length} totales`);
+
+    res.json({
+      success: true,
+      reservas: reservasCompletas,
+      total: reservasCompletas.length,
+      filtro: filtro
+    });
+
+  } catch (err) {
+    console.error('Error al obtener mis reservas:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener las reservas',
+      error: err.message
+    });
+  }
+};
+
+/**
  * HU08: Obtener reserva por código
  */
 exports.obtenerReservaPorCodigo = async (req, res) => {
@@ -1508,6 +1572,307 @@ exports.obtenerPoliticasReservaSalon = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al obtener políticas de reserva',
+      error: err.message
+    });
+  }
+};
+
+// =====================================================
+// HU11: RECIBOS Y COMPROBANTES
+// =====================================================
+
+/**
+ * HU11 CA1: Obtener recibo de una reserva (JSON para visualización)
+ */
+exports.obtenerReciboReserva = async (req, res) => {
+  try {
+    const { reservaId } = req.params;
+
+    // Buscar reserva
+    const reserva = await Reserva.findById(reservaId)
+      .populate('hotel', 'nombre ciudad direccion telefono email')
+      .populate('habitacion', 'numero tipo capacidad servicios')
+      .lean();
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    // Validar que la reserva esté confirmada
+    if (reserva.estado !== 'confirmada' && reserva.estado !== 'completada') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo las reservas confirmadas tienen recibo disponible'
+      });
+    }
+
+    // Generar datos del recibo
+    const recibo = {
+      fechaEmision: new Date(),
+      hotel: {
+        nombre: reserva.hotel.nombre,
+        ciudad: reserva.hotel.ciudad,
+        direccion: reserva.hotel.direccion,
+        telefono: reserva.hotel.telefono,
+        email: reserva.hotel.email
+      },
+      noches: reserva.noches,
+      precioBase: reserva.tarifa.precioPorNoche,
+      subtotal: reserva.tarifa.subtotal,
+      impuestos: reserva.tarifa.impuestos,
+      porcentajeImpuesto: 19,
+      descuentos: 0,
+      serviciosAdicionales: [],
+      metodoPago: 'Tarjeta de Crédito',
+      fechaPago: reserva.createdAt,
+      transaccionId: `TXN-${reserva.codigoReserva}`
+    };
+
+    res.json({
+      success: true,
+      recibo,
+      reserva
+    });
+
+  } catch (err) {
+    console.error('Error al obtener recibo:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener recibo',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * HU11 CA2: Descargar recibo en PDF
+ */
+exports.descargarReciboPDF = async (req, res) => {
+  try {
+    const { reservaId } = req.params;
+
+    // Buscar reserva
+    const reserva = await Reserva.findById(reservaId)
+      .populate('hotel', 'nombre ciudad direccion telefono email')
+      .populate('habitacion', 'numero tipo capacidad servicios')
+      .lean();
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    if (reserva.estado !== 'confirmada' && reserva.estado !== 'completada') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo las reservas confirmadas tienen recibo disponible'
+      });
+    }
+
+    // Generar PDF usando el controlador de comprobantes
+    const comprobanteController = require('./comprobanteController');
+    
+    // Simular request con codigoReserva
+    const fakeReq = {
+      params: { codigoReserva: reserva.codigoReserva },
+      query: { idioma: 'es' }
+    };
+
+    return comprobanteController.descargarComprobantePDF(fakeReq, res);
+
+  } catch (err) {
+    console.error('Error al descargar PDF:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al generar PDF',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * HU11: Enviar recibo por email
+ */
+exports.enviarReciboPorEmail = async (req, res) => {
+  try {
+    const { reservaId } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email es requerido'
+      });
+    }
+
+    // Buscar reserva
+    const reserva = await Reserva.findById(reservaId)
+      .populate('hotel', 'nombre ciudad direccion telefono email')
+      .populate('habitacion', 'numero tipo capacidad servicios')
+      .lean();
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    if (reserva.estado !== 'confirmada' && reserva.estado !== 'completada') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo las reservas confirmadas tienen recibo disponible'
+      });
+    }
+
+    // Enviar por email usando el sistema de emails
+    const { sendReservaConfirmacionEmail } = require('../config/email');
+
+    const emailData = {
+      email: email,
+      nombre: reserva.datosHuesped.nombre,
+      apellido: reserva.datosHuesped.apellido,
+      codigoReserva: reserva.codigoReserva,
+      hotel: {
+        nombre: reserva.hotel.nombre,
+        ciudad: reserva.hotel.ciudad,
+        direccion: reserva.hotel.direccion,
+        telefono: reserva.hotel.telefono,
+        email: reserva.hotel.email
+      },
+      habitacion: {
+        tipo: reserva.habitacion.tipo,
+        numero: reserva.habitacion.numero
+      },
+      fechaInicio: reserva.fechaInicio,
+      fechaFin: reserva.fechaFin,
+      noches: reserva.noches,
+      huespedes: reserva.huespedes,
+      tarifa: {
+        precioPorNoche: reserva.tarifa.precioPorNoche,
+        subtotal: reserva.tarifa.subtotal,
+        impuestos: reserva.tarifa.impuestos,
+        total: reserva.tarifa.total,
+        moneda: reserva.tarifa.moneda || 'COP'
+      },
+      checkInTime: '15:00',
+      checkOutTime: '12:00'
+    };
+
+    const resultado = await sendReservaConfirmacionEmail(emailData);
+
+    if (resultado.success) {
+      res.json({
+        success: true,
+        message: `Recibo enviado exitosamente a ${email}`,
+        messageId: resultado.messageId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Error al enviar el recibo por email',
+        error: resultado.error
+      });
+    }
+
+  } catch (err) {
+    console.error('Error al enviar recibo por email:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al enviar recibo por email',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * HU12: Reenviar email de confirmación
+ */
+exports.reenviarEmailConfirmacion = async (req, res) => {
+  try {
+    const { reservaId } = req.params;
+
+    // Buscar reserva
+    const reserva = await Reserva.findById(reservaId)
+      .populate('hotel', 'nombre ciudad direccion telefono email')
+      .populate('habitacion', 'numero tipo capacidad servicios')
+      .lean();
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    if (reserva.estado !== 'confirmada' && reserva.estado !== 'completada') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo se puede reenviar confirmación de reservas confirmadas'
+      });
+    }
+
+    // Reenviar email usando los mismos datos
+    const { sendReservaConfirmacionEmail } = require('../config/email');
+
+    const emailData = {
+      email: reserva.datosHuesped.email,
+      nombre: reserva.datosHuesped.nombre,
+      apellido: reserva.datosHuesped.apellido,
+      codigoReserva: reserva.codigoReserva,
+      hotel: {
+        nombre: reserva.hotel.nombre,
+        ciudad: reserva.hotel.ciudad,
+        direccion: reserva.hotel.direccion,
+        telefono: reserva.hotel.telefono,
+        email: reserva.hotel.email
+      },
+      habitacion: {
+        tipo: reserva.habitacion.tipo,
+        numero: reserva.habitacion.numero
+      },
+      fechaInicio: reserva.fechaInicio,
+      fechaFin: reserva.fechaFin,
+      noches: reserva.noches,
+      huespedes: reserva.huespedes,
+      tarifa: {
+        precioPorNoche: reserva.tarifa.precioPorNoche,
+        subtotal: reserva.tarifa.subtotal,
+        impuestos: reserva.tarifa.impuestos,
+        total: reserva.tarifa.total,
+        moneda: reserva.tarifa.moneda || 'COP'
+      },
+      checkInTime: '15:00',
+      checkOutTime: '12:00'
+    };
+
+    const resultado = await sendReservaConfirmacionEmail(emailData);
+
+    if (resultado.success) {
+      res.json({
+        success: true,
+        message: 'Email de confirmación reenviado exitosamente',
+        messageId: resultado.messageId,
+        destinatario: reserva.datosHuesped.email
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Error al reenviar email de confirmación',
+        error: resultado.error
+      });
+    }
+
+  } catch (err) {
+    console.error('Error al reenviar email:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reenviar email de confirmación',
       error: err.message
     });
   }

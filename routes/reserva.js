@@ -7,6 +7,9 @@ const reservaController = require('../controllers/reservaController');
 // Obtener todas las reservas (usar el controller)
 router.get('/', reservaController.obtenerTodasReservas);
 
+// Obtener mis reservas (filtradas por usuario o parámetros)
+router.get('/mis-reservas', reservaController.obtenerMisReservas);
+
 // HU08: Obtener reserva por código (acceso público)
 router.get('/codigo/:codigo', reservaController.obtenerReservaPorCodigo);
 
@@ -41,5 +44,21 @@ router.post('/salones/:salonId/confirmar', reservaController.confirmarReservaSal
 // HU17 CA4: Obtener políticas de reserva de salones
 router.get('/salones/politicas/:hotelId', reservaController.obtenerPoliticasReservaSalon);
 router.get('/salones/politicas', reservaController.obtenerPoliticasReservaSalon);
+
+// =====================================================
+// HU11: RECIBOS Y COMPROBANTES
+// =====================================================
+
+// HU11 CA1: Obtener recibo de una reserva (JSON para visualización)
+router.get('/:reservaId/recibo', reservaController.obtenerReciboReserva);
+
+// HU11 CA2: Descargar recibo en PDF
+router.get('/:reservaId/recibo/pdf', reservaController.descargarReciboPDF);
+
+// HU11: Enviar recibo por email
+router.post('/:reservaId/recibo/enviar', reservaController.enviarReciboPorEmail);
+
+// HU12: Reenviar email de confirmación
+router.post('/:reservaId/reenviar-email', reservaController.reenviarEmailConfirmacion);
 
 module.exports = router;

@@ -50,18 +50,23 @@ const createSendGridTransporter = () => {
 const getTransporter = async () => {
   const environment = process.env.NODE_ENV || 'development';
   
-  if (environment === 'production' && process.env.SENDGRID_API_KEY) {
+  // Prioridad 1: SendGrid para producción con API key
+  if (process.env.SENDGRID_API_KEY) {
     console.log('📧 Usando SendGrid para emails');
     return createSendGridTransporter();
   }
   
-  if (environment === 'production' && process.env.EMAIL_USER) {
-    console.log('📧 Usando Gmail para emails');
+  // Prioridad 2: Gmail para desarrollo y producción
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    console.log('📧 Usando Gmail para emails reales');
     return createGmailTransporter();
   }
   
-  // Desarrollo: usar Ethereal (emails de prueba)
-  console.log('📧 Usando Ethereal (modo desarrollo)');
+  // Fallback: Ethereal solo si no hay otras opciones
+  console.log('⚠️  Usando Ethereal (emails de prueba - NO LLEGAN A BANDEJA REAL)');
+  console.log('   Para enviar emails reales, configura Gmail en .env:');
+  console.log('   EMAIL_USER=tusemail@gmail.com');
+  console.log('   EMAIL_PASS=tu_app_password');
   return await createTestTransporter();
 };
 
