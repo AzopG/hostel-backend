@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const asistenteController = require('../controllers/asistenteController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 /**
  * HU19: RUTAS PARA GESTIÓN DE ASISTENTES

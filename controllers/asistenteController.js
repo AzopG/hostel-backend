@@ -10,7 +10,7 @@ const Salon = require('../models/Salon');
  * HU19 CA1: Alta de asistente
  * Agregar un nuevo asistente a la lista de una reserva
  */
-exports.agregarAsistente = async (req, res) => {
+const agregarAsistente = async (req, res) => {
   try {
     const { reservaId } = req.params;
     const { nombre, correo, notas } = req.body;
@@ -147,7 +147,7 @@ exports.agregarAsistente = async (req, res) => {
  * HU19 CA2: Edición de asistente
  * Actualizar datos de un asistente existente
  */
-exports.editarAsistente = async (req, res) => {
+const editarAsistente = async (req, res) => {
   try {
     const { reservaId, asistenteId } = req.params;
     const { nombre, correo, confirmado, notas } = req.body;
@@ -232,7 +232,7 @@ exports.editarAsistente = async (req, res) => {
  * HU19 CA3: Eliminación de asistente
  * Remover un asistente de la lista
  */
-exports.eliminarAsistente = async (req, res) => {
+const eliminarAsistente = async (req, res) => {
   try {
     const { reservaId, asistenteId } = req.params;
 
@@ -288,7 +288,7 @@ exports.eliminarAsistente = async (req, res) => {
 /**
  * Obtener lista completa de asistentes de una reserva
  */
-exports.obtenerAsistentes = async (req, res) => {
+const obtenerAsistentes = async (req, res) => {
   try {
     const { reservaId } = req.params;
 
@@ -362,7 +362,7 @@ exports.obtenerAsistentes = async (req, res) => {
 /**
  * Confirmar asistencia de un asistente
  */
-exports.confirmarAsistencia = async (req, res) => {
+const confirmarAsistencia = async (req, res) => {
   try {
     const { reservaId, asistenteId } = req.params;
 
@@ -413,7 +413,7 @@ exports.confirmarAsistencia = async (req, res) => {
 /**
  * Importar lista de asistentes desde un array
  */
-exports.importarAsistentes = async (req, res) => {
+const importarAsistentes = async (req, res) => {
   try {
     const { reservaId } = req.params;
     const { asistentes } = req.body; // Array de { nombre, correo, notas }

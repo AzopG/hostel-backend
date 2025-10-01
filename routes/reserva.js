@@ -39,6 +39,7 @@ router.post('/salones/:salonId/verificar-disponibilidad', reservaController.veri
 router.post('/salones/:salonId/confirmar', reservaController.confirmarReservaSalon);
 
 // HU17 CA4: Obtener políticas de reserva de salones
-router.get('/salones/politicas/:hotelId?', reservaController.obtenerPoliticasReservaSalon);
+router.get('/salones/politicas/:hotelId', reservaController.obtenerPoliticasReservaSalon);
+router.get('/salones/politicas', reservaController.obtenerPoliticasReservaSalon);
 
 module.exports = router;

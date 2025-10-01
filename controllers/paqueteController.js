@@ -12,7 +12,7 @@ const Hotel = require('../models/Hotel');
  * HU18 CA1: Iniciar selección de paquete corporativo
  * Permite elegir salón, número de habitaciones y catering
  */
-exports.iniciarPaqueteCorporativo = async (req, res) => {
+const iniciarPaqueteCorporativo = async (req, res) => {
   try {
     const { hotelId } = req.params;
     const { fechaInicio, fechaFin } = req.body;
@@ -155,7 +155,7 @@ exports.iniciarPaqueteCorporativo = async (req, res) => {
  * HU18 CA2: Validar disponibilidad conjunta de todos los componentes
  * CA3: Detectar inconsistencias y ofrecer alternativas
  */
-exports.validarDisponibilidadPaquete = async (req, res) => {
+const validarDisponibilidadPaquete = async (req, res) => {
   try {
     const {
       hotelId,
@@ -434,7 +434,7 @@ exports.validarDisponibilidadPaquete = async (req, res) => {
  * HU18 CA4: Confirmar paquete corporativo
  * Genera código único y bloquea todos los recursos
  */
-exports.confirmarPaqueteCorporativo = async (req, res) => {
+const confirmarPaqueteCorporativo = async (req, res) => {
   try {
     const {
       hotelId,

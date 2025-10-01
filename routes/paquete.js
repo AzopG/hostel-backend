@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Paquete = require('../models/Paquete');
 const paqueteController = require('../controllers/paqueteController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 /**
  * HU18: RUTAS PARA PAQUETES CORPORATIVOS
