@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Rutas
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/hotel', require('./routes/hotel'));
 
 // Manejo de errores
 app.use(errorHandler);

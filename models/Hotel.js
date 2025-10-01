@@ -1,14 +1,16 @@
 const mongoose = require('mongoose');
 
 const hotelSchema = new mongoose.Schema({
+  activo: { type: Boolean, default: true }, // Estado activo/inactivo
   nombre: { type: String, required: true },
   ciudad: { type: String, required: true },
   direccion: String,
   telefono: String,
   email: String,
+  categoria: { type: Number, min: 1, max: 5, default: 3 }, // Nueva: categoría de estrellas
+  ocupacion: { type: Number, min: 0, max: 100, default: 0 }, // Nueva: porcentaje de ocupación
   habitaciones: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Habitacion' }],
   salones: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Salon' }],
-  
   // HU07: Campos adicionales para detalle
   fotos: [{ type: String }], // URLs de fotos del hotel
   calificacion: { type: Number, min: 0, max: 5, default: 0 },
