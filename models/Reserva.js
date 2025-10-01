@@ -117,6 +117,16 @@ const reservaSchema = new mongoose.Schema({
     totalConDescuento: { type: Number }
   },
   
+  // HU19: Lista de asistentes para eventos corporativos
+  listaAsistentes: [{
+    nombre: { type: String, required: true }, // CA1: Nombre del asistente
+    correo: { type: String, required: true }, // CA1: Correo electrónico
+    confirmado: { type: Boolean, default: false }, // Si confirmó asistencia
+    fechaRegistro: { type: Date, default: Date.now }, // CA1: Fecha de alta
+    fechaModificacion: { type: Date }, // CA2: Fecha de última edición
+    notas: { type: String } // Notas adicionales (cargo, empresa, etc.)
+  }],
+  
   // Eventos empresariales (opcional - legacy)
   asistentes: [{ type: String }],
   
