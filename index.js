@@ -9,6 +9,7 @@ app.use(express.json());
 
 app.use(cors());
 
+// Solo una conexión a MongoDB
 connectDB();
 
 // Importar rutas
@@ -33,13 +34,19 @@ const PORT = process.env.PORT || 4000;
 
 // Solo iniciar el servidor si no estamos en modo test
 if (process.env.NODE_ENV !== 'test') {
-  mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  }).then(() => {
-    console.log('Conectado a MongoDB');
-    app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
-  }).catch(err => console.error('Error de conexión:', err));
+  // Usar el evento de conexión de mongoose en lugar de conectar de nuevo
+  mongoose.connection.once('open', () => {
+    console.log('Servidor iniciando...');
+    app.listen(PORT, () => {
+      console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+      console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:4200'}`);
+      console.log(`📧 Email configurado: ${process.env.EMAIL_USER}`);
+    });
+  });
+
+  mongoose.connection.on('error', (err) => {
+    console.error('❌ Error de conexión a MongoDB:', err);
+  });
 }
 
 // Exportar app para testing
