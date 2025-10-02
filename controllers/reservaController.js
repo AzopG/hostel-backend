@@ -164,6 +164,62 @@ const Salon = require('../models/Salon');
 const Hotel = require('../models/Hotel');
 
 /**
+ * HU25: Panel de ocupación consolidada por hotel (solo admin central)
+ * GET /api/reservas/ocupacion-hotel?fechaInicio=YYYY-MM-DD&fechaFin=YYYY-MM-DD
+ * Devuelve: [{ hotelId, nombre, ciudad, habitacionesTotales, habitacionesOcupadas, porcentajeOcupacion }]
+ * Requiere rol: adminCentral
+ */
+exports.obtenerOcupacionPorHotel = async (req, res) => {
+  try {
+    const { fechaInicio, fechaFin } = req.query;
+    if (!fechaInicio || !fechaFin) {
+      return res.status(400).json({ success: false, message: 'Debe proporcionar fechaInicio y fechaFin' });
+    }
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+    if (isNaN(inicio) || isNaN(fin) || inicio > fin) {
+      return res.status(400).json({ success: false, message: 'Fechas inválidas' });
+    }
+
+    // Obtener todos los hoteles activos
+    const hoteles = await Hotel.find({ activo: true });
+    const resultado = [];
+
+    for (const hotel of hoteles) {
+      // Obtener habitaciones del hotel
+      const habitaciones = await Habitacion.find({ hotel: hotel._id });
+      const idsHabitaciones = habitaciones.map(h => h._id);
+      const totalHabitaciones = habitaciones.length;
+
+      // Buscar reservas confirmadas en rango de fechas para esas habitaciones
+      const reservasOcupadas = await Reserva.find({
+        habitacion: { $in: idsHabitaciones },
+        estado: 'confirmada',
+        $or: [
+          { fechaInicio: { $lte: fin }, fechaFin: { $gte: inicio } }
+        ]
+      });
+      // Cada reserva ocupa una habitación
+      const ocupadas = reservasOcupadas.length;
+
+      resultado.push({
+        hotelId: hotel._id,
+        nombre: hotel.nombre,
+        ciudad: hotel.ciudad,
+        habitacionesTotales: totalHabitaciones,
+        habitacionesOcupadas: ocupadas,
+        porcentajeOcupacion: totalHabitaciones > 0 ? Math.round((ocupadas / totalHabitaciones) * 100) : 0
+      });
+    }
+
+    res.json({ success: true, ocupacion: resultado });
+  } catch (err) {
+    console.error('Error en obtenerOcupacionPorHotel:', err);
+    res.status(500).json({ success: false, message: 'Error al obtener ocupación por hotel', error: err.message });
+  }
+};
+
+/**
  * HU08 CA1 + CA2 + CA3: Crear reserva con validación de disponibilidad
  */
 exports.crearReserva = async (req, res) => {
