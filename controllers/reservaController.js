@@ -1161,11 +1161,11 @@ exports.iniciarReservaSalon = async (req, res) => {
 
     // Calcular tarifa estimada
     const tarifaEstimada = {
-      precioPorDia: salon.precio || 500000,
+      precioPorDia: salon.precioPorDia || 500000,
       dias: dias,
-      subtotal: (salon.precio || 500000) * dias,
-      impuestos: Math.round((salon.precio || 500000) * dias * 0.19),
-      total: (salon.precio || 500000) * dias + Math.round((salon.precio || 500000) * dias * 0.19),
+      subtotal: (salon.precioPorDia || 500000) * dias,
+      impuestos: Math.round((salon.precioPorDia || 500000) * dias * 0.19),
+      total: (salon.precioPorDia || 500000) * dias + Math.round((salon.precioPorDia || 500000) * dias * 0.19),
       moneda: 'COP'
     };
 
@@ -1178,7 +1178,7 @@ exports.iniciarReservaSalon = async (req, res) => {
         nombre: salon.nombre,
         capacidad: salon.capacidad,
         area: salon.area,
-        precio: salon.precio,
+        precio: salon.precioPorDia,
         equipamiento: salon.equipamiento,
         imagenes: salon.imagenes,
         descripcion: salon.descripcion,
@@ -1447,7 +1447,7 @@ exports.confirmarReservaSalon = async (req, res) => {
     const codigoReserva = await Reserva.generarCodigoReserva();
 
     // Calcular tarifa
-    const precioPorDia = salon.precio || 500000;
+    const precioPorDia = salon.precioPorDia || 500000;
     const subtotal = precioPorDia * dias;
     const impuestos = Math.round(subtotal * 0.19);
     const total = subtotal + impuestos;
@@ -1463,6 +1463,13 @@ exports.confirmarReservaSalon = async (req, res) => {
       }
     }
 
+    console.log('🔍 Debug - capacidadLayout:', capacidadLayout);
+    console.log('🔍 Debug - salon.capacidad:', salon.capacidad);
+    
+    // Asegurarse de que huespedes tenga un valor válido
+    const huespedes = capacidadLayout || salon.capacidad || 50;
+    console.log('🔍 Debug - huespedes final:', huespedes);
+
     // CA3: Crear la reserva de salón
     const reserva = new Reserva({
       usuario: usuario || null,
@@ -1470,7 +1477,8 @@ exports.confirmarReservaSalon = async (req, res) => {
       salon: salonId, // Campo específico para salones
       fechaInicio: inicio,
       fechaFin: fin,
-      noches: 0, // N/A para salones
+      huespedes: huespedes, // Usar el valor calculado anteriormente
+      noches: 0, // N/A para salones, pero requerido por el esquema
       codigoReserva,
       datosHuesped: {
         nombre: datosContacto.nombre,
@@ -1495,9 +1503,7 @@ exports.confirmarReservaSalon = async (req, res) => {
         requiremientosEspeciales: datosEvento.requiremientosEspeciales || ''
       },
       tarifa: {
-        precioPorNoche: 0, // N/A para salones
-        precioPorDia: precioPorDia,
-        dias: dias,
+        precioPorNoche: 0, // N/A para salones, pero requerido por el esquema
         subtotal: subtotal,
         impuestos: impuestos,
         total: total,

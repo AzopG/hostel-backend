@@ -7,6 +7,10 @@ const { auth } = require('../middleware/auth');
 // GET /api/salones/buscar?hotelId=X&capacidadMinima=Y&fechaInicio=Z&fechaFin=W&ordenarPor=capacidad_asc
 router.get('/buscar', salonController.buscarSalonesDisponibles);
 
+// Listar todos los salones disponibles (para empresas)
+// GET /api/salones
+router.get('/', salonController.listarTodosSalones);
+
 // Listar todos los salones de un hotel
 // GET /api/salones/hotel/:hotelId
 router.get('/hotel/:hotelId', salonController.listarSalonesHotel);

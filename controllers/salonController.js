@@ -327,6 +327,31 @@ exports.listarSalonesHotel = async (req, res) => {
 };
 
 /**
+ * Listar todos los salones disponibles (para empresas)
+ */
+exports.listarTodosSalones = async (req, res) => {
+  try {
+    const salones = await Salon.find({ disponible: true })
+      .populate('hotel', 'nombre ciudad direccion telefono email')
+      .sort({ 'hotel.nombre': 1, capacidad: 1 });
+
+    res.status(200).json({
+      success: true,
+      salones,
+      total: salones.length
+    });
+
+  } catch (error) {
+    console.error('Error al listar todos los salones:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener todos los salones',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Crear un nuevo salón (solo administradores)
  */
 exports.crearSalon = async (req, res) => {
