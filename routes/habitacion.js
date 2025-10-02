@@ -31,4 +31,30 @@ router.post('/', async (req, res) => {
   res.status(201).json(habitacion);
 });
 
+// Actualizar habitación
+router.put('/:id', async (req, res) => {
+  try {
+    const habitacion = await Habitacion.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!habitacion) {
+      return res.status(404).json({ message: 'Habitación no encontrada' });
+    }
+    res.json(habitacion);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Eliminar habitación
+router.delete('/:id', async (req, res) => {
+  try {
+    const habitacion = await Habitacion.findByIdAndDelete(req.params.id);
+    if (!habitacion) {
+      return res.status(404).json({ message: 'Habitación no encontrada' });
+    }
+    res.json({ message: 'Habitación eliminada exitosamente' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

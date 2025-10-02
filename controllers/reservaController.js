@@ -1842,3 +1842,236 @@ exports.reenviarEmailConfirmacion = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// GESTIÓN DE RESERVAS PARA HOTELES
+// =====================================================
+
+/**
+ * Confirmar una reserva pendiente (para administradores de hotel)
+ */
+exports.confirmarReservaPendiente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notas } = req.body;
+
+    // Buscar la reserva
+    const reserva = await Reserva.findById(id)
+      .populate('hotel')
+      .populate('habitacion')
+      .populate('salon')
+      .populate('usuario');
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    // Verificar que esté pendiente
+    if (reserva.estado !== 'pendiente') {
+      return res.status(400).json({
+        success: false,
+        message: `No se puede confirmar una reserva con estado: ${reserva.estado}`
+      });
+    }
+
+    // Verificar disponibilidad una vez más
+    if (reserva.habitacion) {
+      const conflictos = await Reserva.find({
+        _id: { $ne: id },
+        habitacion: reserva.habitacion._id,
+        estado: { $in: ['confirmada'] },
+        $or: [
+          {
+            fechaInicio: { $lte: reserva.fechaFin },
+            fechaFin: { $gte: reserva.fechaInicio }
+          }
+        ]
+      });
+
+      if (conflictos.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'La habitación ya no está disponible para estas fechas'
+        });
+      }
+    }
+
+    // Confirmar la reserva
+    reserva.estado = 'confirmada';
+    reserva.fechaConfirmacion = new Date();
+    if (notas) {
+      reserva.notasHotel = notas;
+    }
+
+    await reserva.save();
+
+    res.json({
+      success: true,
+      message: 'Reserva confirmada exitosamente',
+      reserva: {
+        _id: reserva._id,
+        codigoReserva: reserva.codigoReserva,
+        estado: reserva.estado,
+        fechaConfirmacion: reserva.fechaConfirmacion
+      }
+    });
+
+  } catch (err) {
+    console.error('Error al confirmar reserva:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al confirmar reserva',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Rechazar una reserva pendiente (para administradores de hotel)
+ */
+exports.rechazarReservaPendiente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motivo, notas } = req.body;
+
+    if (!motivo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Debe proporcionar un motivo para rechazar la reserva'
+      });
+    }
+
+    // Buscar la reserva
+    const reserva = await Reserva.findById(id)
+      .populate('hotel')
+      .populate('habitacion')
+      .populate('salon')
+      .populate('usuario');
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    // Verificar que esté pendiente
+    if (reserva.estado !== 'pendiente') {
+      return res.status(400).json({
+        success: false,
+        message: `No se puede rechazar una reserva con estado: ${reserva.estado}`
+      });
+    }
+
+    // Rechazar la reserva
+    reserva.estado = 'cancelada';
+    reserva.fechaCancelacion = new Date();
+    reserva.motivoCancelacion = motivo;
+    reserva.canceladoPor = 'hotel';
+    if (notas) {
+      reserva.notasHotel = notas;
+    }
+
+    await reserva.save();
+
+    res.json({
+      success: true,
+      message: 'Reserva rechazada exitosamente',
+      reserva: {
+        _id: reserva._id,
+        codigoReserva: reserva.codigoReserva,
+        estado: reserva.estado,
+        fechaCancelacion: reserva.fechaCancelacion,
+        motivoCancelacion: reserva.motivoCancelacion
+      }
+    });
+
+  } catch (err) {
+    console.error('Error al rechazar reserva:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al rechazar reserva',
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Actualizar estado de una reserva (para administradores de hotel)
+ */
+exports.actualizarEstadoReserva = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado, notas } = req.body;
+
+    const estadosValidos = ['pendiente', 'confirmada', 'cancelada', 'completada'];
+    
+    if (!estado || !estadosValidos.includes(estado)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estado inválido. Estados válidos: ' + estadosValidos.join(', ')
+      });
+    }
+
+    // Buscar la reserva
+    const reserva = await Reserva.findById(id)
+      .populate('hotel')
+      .populate('habitacion')
+      .populate('salon')
+      .populate('usuario');
+
+    if (!reserva) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva no encontrada'
+      });
+    }
+
+    const estadoAnterior = reserva.estado;
+
+    // Actualizar estado
+    reserva.estado = estado;
+    
+    // Agregar timestamps según el estado
+    switch (estado) {
+      case 'confirmada':
+        reserva.fechaConfirmacion = new Date();
+        break;
+      case 'cancelada':
+        reserva.fechaCancelacion = new Date();
+        reserva.canceladoPor = 'hotel';
+        break;
+      case 'completada':
+        reserva.fechaCompletado = new Date();
+        break;
+    }
+
+    if (notas) {
+      reserva.notasHotel = notas;
+    }
+
+    await reserva.save();
+
+    res.json({
+      success: true,
+      message: `Reserva actualizada de ${estadoAnterior} a ${estado}`,
+      reserva: {
+        _id: reserva._id,
+        codigoReserva: reserva.codigoReserva,
+        estadoAnterior,
+        estadoActual: reserva.estado
+      }
+    });
+
+  } catch (err) {
+    console.error('Error al actualizar estado de reserva:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar estado de reserva',
+      error: err.message
+    });
+  }
+};

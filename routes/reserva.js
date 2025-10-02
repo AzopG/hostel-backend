@@ -61,4 +61,17 @@ router.post('/:reservaId/recibo/enviar', reservaController.enviarReciboPorEmail)
 // HU12: Reenviar email de confirmación
 router.post('/:reservaId/reenviar-email', reservaController.reenviarEmailConfirmacion);
 
+// =====================================================
+// GESTIÓN DE RESERVAS PARA HOTELES
+// =====================================================
+
+// Confirmar una reserva pendiente (para administradores de hotel)
+router.put('/:id/confirmar', reservaController.confirmarReservaPendiente);
+
+// Rechazar una reserva pendiente (para administradores de hotel)
+router.put('/:id/rechazar', reservaController.rechazarReservaPendiente);
+
+// Actualizar estado de una reserva (para administradores de hotel)
+router.put('/:id/estado', reservaController.actualizarEstadoReserva);
+
 module.exports = router;

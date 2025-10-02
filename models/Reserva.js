@@ -172,6 +172,14 @@ const reservaSchema = new mongoose.Schema({
     email: { type: String }
   }],
   
+  // Gestión de hotel
+  fechaConfirmacion: { type: Date },
+  fechaCancelacion: { type: Date },
+  fechaCompletado: { type: Date },
+  motivoCancelacion: { type: String },
+  canceladoPor: { type: String, enum: ['cliente', 'hotel'] },
+  notasHotel: { type: String },
+  
   // Metadata
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
