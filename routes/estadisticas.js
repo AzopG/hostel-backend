@@ -26,13 +26,34 @@ router.get('/generales', async (req, res) => {
         { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
       ]);
       const ingresosTotales = ingresosResult.length > 0 ? ingresosResult[0].total : 0;
+
+      // Reporte: habitaciones por hotel
+      const hoteles = await Hotel.find({});
+      const habitacionesPorHotel = {};
+      const salasPorHotel = {};
+      const paquetesPorHotel = {};
+      for (const hotel of hoteles) {
+        // Habitaciones
+        const habitacionesCount = await require('../models/Habitacion').countDocuments({ hotel: hotel._id });
+        habitacionesPorHotel[hotel.nombre] = habitacionesCount;
+        // Salas
+        const salasCount = await require('../models/Salon').countDocuments({ hotel: hotel._id });
+        salasPorHotel[hotel.nombre] = salasCount;
+        // Paquetes
+        const paquetesCount = await require('../models/Paquete').countDocuments({ hotel: hotel._id });
+        paquetesPorHotel[hotel.nombre] = paquetesCount;
+      }
+
       stats = {
         totalHoteles,
         totalReservas,
         totalClientes,
         ingresosTotales,
         reservasPorMes: [],
-        ocupacionPromedio: 0
+        ocupacionPromedio: 0,
+        habitacionesPorHotel,
+        salasPorHotel,
+        paquetesPorHotel
       };
     } else if (userRole === 'cliente' || userRole === 'empresa') {
       // Estadísticas del usuario
