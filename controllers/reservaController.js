@@ -1,3 +1,163 @@
+ /**
+  * HU09: Modificar fechas de una reserva vigente por código
+  * CA1: Apertura de modificación (estado activa + antes de límite)
+  * CA2: Disponibilidad válida (actualiza reserva e inventario)
+  * CA3: Falta disponibilidad (mensaje de error)
+  * CA4: Restricción temporal (menos de 24 horas para check-in)
+  */
+ exports.modificarFechasReservaPorCodigo = async (req, res) => {
+   try {
+     const { codigo } = req.params;
+     const { fechaInicioNueva, fechaFinNueva } = req.body;
+
+     // Validaciones básicas
+     if (!fechaInicioNueva || !fechaFinNueva) {
+       return res.status(400).json({
+         success: false,
+         message: 'Debe proporcionar fechaInicioNueva y fechaFinNueva'
+       });
+     }
+
+     // Buscar reserva por código
+     const reserva = await Reserva.findOne({ codigoReserva: codigo.toUpperCase() }).populate('habitacion hotel');
+
+     if (!reserva) {
+       return res.status(404).json({
+         success: false,
+         message: 'Reserva no encontrada por código'
+       });
+     }
+
+     // CA1: Verificar que la reserva esté en estado "confirmada" (activa)
+     if (reserva.estado !== 'confirmada') {
+       return res.status(400).json({
+         success: false,
+         message: `No se puede modificar una reserva en estado "${reserva.estado}". Solo reservas confirmadas pueden modificarse.`,
+         puedeModificar: false,
+         motivo: 'estado_invalido'
+       });
+     }
+
+     // CA4: Restricción temporal - No permitir modificación si faltan menos de 24 horas
+     const ahora = new Date();
+     const horasHastaCheckIn = (new Date(reserva.fechaInicio) - ahora) / (1000 * 60 * 60);
+     const HORAS_LIMITE = 24;
+
+     if (horasHastaCheckIn < HORAS_LIMITE) {
+       return res.status(400).json({
+         success: false,
+         message: `No se puede modificar la reserva. Faltan menos de ${HORAS_LIMITE} horas para el check-in.`,
+         puedeModificar: false,
+         motivo: 'restriccion_temporal',
+         horasRestantes: Math.max(0, horasHastaCheckIn.toFixed(1))
+       });
+     }
+
+     // Validar fechas nuevas
+     const inicio = new Date(fechaInicioNueva);
+     const fin = new Date(fechaFinNueva);
+
+     if (inicio >= fin) {
+       return res.status(400).json({
+         success: false,
+         message: 'La fecha de fin debe ser posterior a la fecha de inicio'
+       });
+     }
+
+     if (inicio < ahora) {
+       return res.status(400).json({
+         success: false,
+         message: 'La fecha de inicio no puede ser en el pasado'
+       });
+     }
+
+     // CA3: Verificar disponibilidad para las nuevas fechas
+     // Buscar reservas que NO sean la actual y que tengan solapamiento
+     const reservasConflicto = await Reserva.find({
+       _id: { $ne: reserva._id }, // Excluir la reserva actual
+       habitacion: reserva.habitacion._id,
+       estado: { $in: ['confirmada', 'pendiente'] },
+       $or: [
+         { fechaInicio: { $lte: fin }, fechaFin: { $gte: inicio } }
+       ]
+     });
+
+     if (reservasConflicto.length > 0) {
+       // CA3: Falta disponibilidad
+       return res.status(409).json({
+         success: false,
+         message: 'La habitación no está disponible para las nuevas fechas'
+       });
+     }
+
+     // CA2: Actualizar reserva
+     reserva.fechaInicio = inicio;
+     reserva.fechaFin = fin;
+     reserva.noches = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24));
+     // Recalcular tarifa
+     const precioPorNoche = reserva.tarifa.precioPorNoche;
+     const subtotal = precioPorNoche * reserva.noches;
+     const impuestos = Math.round(subtotal * 0.19);
+     reserva.tarifa = {
+       precioPorNoche,
+       subtotal,
+       impuestos,
+       total: subtotal + impuestos,
+       moneda: 'COP'
+     };
+
+     // Guardar modificación en historial
+     reserva.historialModificaciones = reserva.historialModificaciones || [];
+     reserva.historialModificaciones.push({
+       fechaModificacion: new Date(),
+       fechaInicioAnterior: reserva.fechaInicio,
+       fechaFinAnterior: reserva.fechaFin,
+       fechaInicioNueva: inicio,
+       fechaFinNueva: fin,
+       tarifaAnterior: reserva.tarifa.total,
+       tarifaNueva: subtotal + impuestos
+     });
+
+     await reserva.save();
+
+     res.json({
+       success: true,
+       message: 'Reserva modificada exitosamente',
+       reserva: {
+         _id: reserva._id,
+         codigoReserva: reserva.codigoReserva,
+         datosHuesped: reserva.datosHuesped,
+         habitacion: {
+           _id: reserva.habitacion._id,
+           numero: reserva.habitacion.numero,
+           tipo: reserva.habitacion.tipo
+         },
+         hotel: {
+           _id: reserva.hotel._id,
+           nombre: reserva.hotel.nombre,
+           ciudad: reserva.hotel.ciudad,
+           direccion: reserva.hotel.direccion,
+           telefono: reserva.hotel.telefono,
+           email: reserva.hotel.email
+         },
+         fechaInicio: reserva.fechaInicio,
+         fechaFin: reserva.fechaFin,
+         huespedes: reserva.huespedes,
+         noches: reserva.noches,
+         tarifa: reserva.tarifa,
+         estado: reserva.estado,
+         createdAt: reserva.createdAt
+       }
+     });
+   } catch (err) {
+     console.error('Error al modificar reserva por código:', err);
+     res.status(500).json({
+       success: false,
+       message: 'Error al modificar la reserva por código',
+       error: err.message
+     });
+   }
+ };
 const Reserva = require('../models/Reserva');
 const Habitacion = require('../models/Habitacion');
 const Salon = require('../models/Salon');
@@ -282,12 +442,21 @@ exports.obtenerTodasReservas = async (req, res) => {
 };
 
 /**
- * Obtener mis reservas (filtradas por usuario)
+ * Obtener mis reservas (filtradas por usuario o email del huésped)
  */
 exports.obtenerMisReservas = async (req, res) => {
   try {
-    // Solo permitir reservas del usuario autenticado
+    // Obtener datos del usuario autenticado
     const usuarioId = req.usuario.id;
+    const usuarioEmail = req.usuario.email;
+
+    // Asociar reservas antiguas (usuario: null, email coincide) al usuario actual
+    await Reserva.updateMany(
+      { usuario: null, 'datosHuesped.email': usuarioEmail },
+      { $set: { usuario: usuarioId } }
+    );
+
+    // Buscar reservas asociadas al usuario
     const reservas = await Reserva.find({ usuario: usuarioId })
       .populate('habitacion', 'numero tipo capacidad servicios precio')
       .populate('hotel', 'nombre ciudad departamento direccion telefono email politicas')

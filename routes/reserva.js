@@ -26,7 +26,9 @@ router.put('/cancelar/:id', reservaController.cancelarReserva);
 router.get('/:id/puede-modificar', reservaController.verificarPuedeModificar);
 
 // HU09: Modificar fechas de reserva (CA1 + CA2 + CA3 + CA4)
-router.put('/:id/modificar-fechas', reservaController.modificarFechasReserva);
+ router.put('/:id/modificar-fechas', reservaController.modificarFechasReserva);
+ // HU09: Modificar fechas de reserva por código
+ router.put('/codigo/:codigo/modificar-fechas', reservaController.modificarFechasReservaPorCodigo);
 
 // =====================================================
 // HU17: RESERVAR UN SALÓN
