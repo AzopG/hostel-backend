@@ -39,6 +39,8 @@ app.use('/api/inventario', require('./routes/inventario'));
 app.use('/api/comprobantes', require('./routes/comprobante')); // HU11
 app.use('/api/asistentes', require('./routes/asistente')); // HU19
 app.use('/api/estadisticas', require('./routes/estadisticas')); // Estadísticas del dashboard
+app.use('/api/admin/paquetes', require('./routes/paqueteAdmin')); // Gestión administrativa de paquetes
+app.use('/api/reservas-paquetes', require('./routes/reservaPaquete')); // Reservas de paquetes empresariales
 
 const PORT = process.env.PORT || 4000;
 
