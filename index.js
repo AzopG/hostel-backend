@@ -24,6 +24,7 @@ connectDB();
 
 // Importar rutas
 app.use('/api/hoteles', require('./routes/hotel'));
+app.use('/api/admin/hoteles', require('./routes/hotel'));
 app.use('/api/habitaciones', require('./routes/habitacion'));
 app.use('/api/salones', require('./routes/salon'));
 app.use('/api/reservas', require('./routes/reserva'));
