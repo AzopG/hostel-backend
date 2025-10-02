@@ -63,34 +63,38 @@ describe('Usuario Model', () => {
       tipo: 'cliente'
     };
 
-    const usuario1 = new Usuario(userData);
-    await usuario1.save();
-
-    const usuario2 = new Usuario(userData);
-    
+    // Limpiar la colección antes de probar duplicados
+    await Usuario.deleteMany({});
+    const usuarioPrimero = new Usuario(userData);
+    await usuarioPrimero.save();
+    const usuarioDuplicado = new Usuario(userData);
     let error;
     try {
-      await usuario2.save();
+      await usuarioDuplicado.save();
     } catch (err) {
       error = err;
     }
-
     expect(error).toBeDefined();
     expect(error.code).toBe(11000); // Duplicate key error
   });
 
   it('debería permitir todos los tipos de usuario válidos', async () => {
+
     const tiposValidos = ['cliente', 'empresa', 'admin_hotel', 'admin_central'];
-    
+
     for (let i = 0; i < tiposValidos.length; i++) {
       const tipo = tiposValidos[i];
-      const usuario = new Usuario({
+      const usuarioData = {
         nombre: `User ${i}`,
         email: `user${i}@example.com`,
         password: 'password123',
         tipo: tipo
-      });
-
+      };
+      // Si el tipo es empresa, agrega el campo empresa
+      if (tipo === 'empresa') {
+        usuarioData.empresa = 'Empresa Test S.A.';
+      }
+      const usuario = new Usuario(usuarioData);
       const savedUsuario = await usuario.save();
       expect(savedUsuario.tipo).toBe(tipo);
     }

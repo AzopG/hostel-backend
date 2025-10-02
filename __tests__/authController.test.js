@@ -26,10 +26,10 @@ describe('Auth Controller', () => {
         .post('/register')
         .send(userData);
 
-      expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('msg', 'Usuario registrado exitosamente');
-      expect(response.body.usuario).toHaveProperty('email', userData.email);
-      expect(response.body.usuario).not.toHaveProperty('password');
+  expect(response.status).toBe(201);
+  expect(response.body).toHaveProperty('mensaje', 'Registro exitoso');
+  expect(response.body.usuario).toHaveProperty('email', userData.email);
+  expect(response.body.usuario).not.toHaveProperty('password');
     });
 
     it('debería rechazar registro con email duplicado', async () => {
@@ -48,8 +48,8 @@ describe('Auth Controller', () => {
         .post('/register')
         .send(userData);
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('msg', 'Ya existe un usuario con ese email');
+  expect(response.status).toBe(400);
+  expect(response.body).toHaveProperty('msg', 'Ya existe un usuario con ese email');
     });
 
     it('debería rechazar registro con campos faltantes', async () => {
@@ -63,8 +63,8 @@ describe('Auth Controller', () => {
         .post('/register')
         .send(incompleteData);
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('msg', 'Todos los campos son requeridos');
+  expect(response.status).toBe(400);
+  expect(response.body).toHaveProperty('msg', 'Todos los campos son requeridos');
     });
 
     it('debería rechazar email con formato inválido', async () => {
@@ -79,8 +79,8 @@ describe('Auth Controller', () => {
         .post('/register')
         .send(userData);
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('msg', 'Formato de email inválido');
+  expect(response.status).toBe(400);
+  expect(response.body).toHaveProperty('msg', 'Formato de email inválido');
     });
 
     it('debería rechazar contraseña muy corta', async () => {
@@ -95,8 +95,8 @@ describe('Auth Controller', () => {
         .post('/register')
         .send(userData);
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('msg', 'La contraseña debe tener al menos 6 caracteres');
+  expect(response.status).toBe(400);
+  expect(response.body).toHaveProperty('msg', 'La contraseña debe tener al menos 6 caracteres');
     });
   });
 
@@ -123,12 +123,12 @@ describe('Auth Controller', () => {
         .post('/login')
         .send(credentials);
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('msg', 'Login exitoso');
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('usuario');
-      expect(response.body).toHaveProperty('expiresIn');
-      expect(response.body.usuario).toHaveProperty('email', credentials.email);
+  expect(response.status).toBe(200);
+  expect(response.body).toHaveProperty('msg', 'Login exitoso');
+  expect(response.body).toHaveProperty('token');
+  expect(response.body).toHaveProperty('usuario');
+  expect(response.body).toHaveProperty('expiresIn');
+  expect(response.body.usuario).toHaveProperty('email', credentials.email);
     });
 
     it('debería rechazar login con email inexistente', async () => {
@@ -141,8 +141,8 @@ describe('Auth Controller', () => {
         .post('/login')
         .send(credentials);
 
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('msg', 'Credenciales incorrectas');
+  expect(response.status).toBe(401);
+  expect(response.body).toHaveProperty('mensaje', 'Credenciales inválidas');
     });
 
     it('debería rechazar login con contraseña incorrecta', async () => {
@@ -155,8 +155,8 @@ describe('Auth Controller', () => {
         .post('/login')
         .send(credentials);
 
-      expect(response.status).toBe(401);
-      expect(response.body).toHaveProperty('msg', 'Credenciales incorrectas');
+  expect(response.status).toBe(401);
+  expect(response.body).toHaveProperty('mensaje', 'Credenciales inválidas');
     });
 
     it('debería rechazar login con campos faltantes', async () => {
@@ -169,8 +169,8 @@ describe('Auth Controller', () => {
         .post('/login')
         .send(incompleteCredentials);
 
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('msg', 'Email y contraseña son requeridos');
+  expect(response.status).toBe(400);
+  expect(response.body).toHaveProperty('msg', 'Email y contraseña son requeridos');
     });
   });
 });
