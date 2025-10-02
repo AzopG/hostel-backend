@@ -5,90 +5,35 @@ const Reserva = require('../models/Reserva');
 const Usuario = require('../models/Usuario');
 const { auth } = require('../middleware/auth');
 
-// Aplicar middleware de autenticación a todas las rutas
-router.use(auth);
-
-// Obtener estadísticas generales del sistema
+// Obtener estadísticas generales del sistema (PÚBLICO)
 router.get('/generales', async (req, res) => {
   console.log('🔍 ENDPOINT ESTADISTICAS LLAMADO');
   console.log('Usuario autenticado:', req.usuario);
   
   try {
     const userId = req.usuario?.id;
-    const userRole = req.usuario?.tipo; // Corregido: usar 'tipo' en lugar de 'rol'
+    const userRole = req.usuario?.tipo;
 
     let stats = {};
 
-    if (userRole === 'admin_central') {
-      // Estadísticas completas para admin central
-      console.log('🔍 Consultando datos para admin_central...');
-      
+    // Si no hay usuario autenticado, devolver estadísticas globales
+    if (!userRole) {
       const totalHoteles = await Hotel.countDocuments();
-      console.log('🏨 Total hoteles encontrados:', totalHoteles);
-      
       const totalReservas = await Reserva.countDocuments();
-      console.log('📅 Total reservas encontradas:', totalReservas);
-      
       const totalClientes = await Usuario.countDocuments({ tipo: 'cliente' });
-      console.log('👥 Total clientes encontrados:', totalClientes);
-      
-        // Calcular ingresos totales (suma de precios de reservas confirmadas)
-        const ingresosResult = await Reserva.aggregate([
-          { $match: { estado: 'confirmada' } },
-          { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
-        ]);
-        const ingresosTotales = ingresosResult.length > 0 ? ingresosResult[0].total : 0;
-        console.log('💰 Ingresos calculados:', ingresosTotales);
-        
-        // Reservas por mes (últimos 6 meses)  
-        const reservasPorMes = []; // Simplificado temporalmente
-
-      stats = {
-        totalHoteles,
-        totalReservas,
-        totalClientes,
-        ingresosTotales,
-        reservasPorMes,
-        ocupacionPromedio: 0 // Simplificado temporalmente
-      };
-
-      console.log('📊 Stats calculadas:', stats);
-
-    } else if (userRole === 'admin_hotel') {
-      // Admin hotel administra TODOS los hoteles de la cadena
-      console.log('🔍 Consultando datos para admin_hotel (todos los hoteles)...');
-      
-      const totalHoteles = await Hotel.countDocuments();
-      console.log('🏨 Total hoteles encontrados:', totalHoteles);
-      
-      const totalReservas = await Reserva.countDocuments();
-      console.log('📅 Total reservas encontradas:', totalReservas);
-      
-      const totalClientes = await Usuario.countDocuments({ tipo: 'cliente' });
-      console.log('👥 Total clientes encontrados:', totalClientes);
-      
-      // Calcular ingresos totales de todos los hoteles
       const ingresosResult = await Reserva.aggregate([
         { $match: { estado: 'confirmada' } },
         { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
       ]);
       const ingresosTotales = ingresosResult.length > 0 ? ingresosResult[0].total : 0;
-      console.log('💰 Ingresos totales calculados:', ingresosTotales);
-      
-      // Reservas por mes (simplificado)
-      const reservasPorMes = [];
-      
       stats = {
         totalHoteles,
         totalReservas,
         totalClientes,
         ingresosTotales,
-        reservasPorMes,
+        reservasPorMes: [],
         ocupacionPromedio: 0
       };
-      
-      console.log('📊 Stats calculadas para admin_hotel:', stats);
-
     } else if (userRole === 'cliente' || userRole === 'empresa') {
       // Estadísticas del usuario
       const misReservas = await Reserva.countDocuments({ cliente: userId });
@@ -96,13 +41,11 @@ router.get('/generales', async (req, res) => {
         cliente: userId, 
         estado: { $in: ['confirmada', 'pendiente'] }
       });
-
       const gastoTotal = await Reserva.aggregate([
         { $match: { cliente: userId, estado: 'confirmada' } },
         { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
       ]);
       const totalGastado = gastoTotal.length > 0 ? gastoTotal[0].total : 0;
-
       stats = {
         misReservas,
         reservasActivas,
@@ -129,6 +72,9 @@ router.get('/generales', async (req, res) => {
     });
   }
 });
+
+// Aplicar middleware de autenticación SOLO a rutas protegidas
+router.use(auth);
 
 // Función auxiliar para calcular ocupación promedio
 async function calcularOcupacionPromedio() {
