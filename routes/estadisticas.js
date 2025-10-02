@@ -32,11 +32,16 @@ router.get('/generales', async (req, res) => {
       const totalClientes = await Usuario.countDocuments({ tipo: 'cliente' });
       console.log('👥 Total clientes encontrados:', totalClientes);
       
-      // Calcular ingresos totales (suma de precios de reservas confirmadas)
-      const ingresosTotales = 0; // Simplificado temporalmente
-
-      // Reservas por mes (últimos 6 meses)  
-      const reservasPorMes = []; // Simplificado temporalmente
+        // Calcular ingresos totales (suma de precios de reservas confirmadas)
+        const ingresosResult = await Reserva.aggregate([
+          { $match: { estado: 'confirmada' } },
+          { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
+        ]);
+        const ingresosTotales = ingresosResult.length > 0 ? ingresosResult[0].total : 0;
+        console.log('💰 Ingresos calculados:', ingresosTotales);
+        
+        // Reservas por mes (últimos 6 meses)  
+        const reservasPorMes = []; // Simplificado temporalmente
 
       stats = {
         totalHoteles,
@@ -50,68 +55,39 @@ router.get('/generales', async (req, res) => {
       console.log('📊 Stats calculadas:', stats);
 
     } else if (userRole === 'admin_hotel') {
-      // Estadísticas específicas del hotel del admin
-      console.log('🔍 Consultando datos para admin_hotel...');
-      console.log('🆔 User ID buscado:', userId);
+      // Admin hotel administra TODOS los hoteles de la cadena
+      console.log('🔍 Consultando datos para admin_hotel (todos los hoteles)...');
       
-      const hotel = await Hotel.findOne({ admin: userId });
-      console.log('🏨 Hotel encontrado:', hotel);
-      
-      if (!hotel) {
-        console.log('❌ No se encontró hotel para este admin');
-        // En lugar de error, mostrar estadísticas generales temporalmente
-        const totalHoteles = await Hotel.countDocuments();
-        const totalReservas = await Reserva.countDocuments();
-        const totalClientes = await Usuario.countDocuments({ tipo: 'cliente' });
-        
-        stats = {
-          totalHoteles, // Usar el total real, no hardcodeado
-          totalReservas,
-          totalClientes,
-          ingresosTotales: 0,
-          ocupacionActual: 0,
-          nombreHotel: 'Hotel no asignado'
-        };
-        
-        console.log('📊 Stats por defecto para admin_hotel:', stats);
-      } else {
-
-      const reservasHotel = await Reserva.countDocuments({ 
-        $or: [
-          { 'habitacion.hotel': hotel._id },
-          { 'salon.hotel': hotel._id }
-        ]
-      });
-
-      const ingresosHotel = await Reserva.aggregate([
-        { 
-          $match: { 
-            estado: 'confirmada',
-            $or: [
-              { 'habitacion.hotel': hotel._id },
-              { 'salon.hotel': hotel._id }
-            ]
-          }
-        },
-        { $group: { _id: null, total: { $sum: '$precioTotal' } } }
-      ]);
-      const ingresosTotales = ingresosHotel.length > 0 ? ingresosHotel[0].total : 0;
-
-      // Habitaciones del hotel
-      const habitacionesTotal = hotel.habitaciones ? hotel.habitaciones.length : 0;
-      
-      // Obtener total de hoteles para mostrar el número real
       const totalHoteles = await Hotel.countDocuments();
+      console.log('🏨 Total hoteles encontrados:', totalHoteles);
+      
+      const totalReservas = await Reserva.countDocuments();
+      console.log('📅 Total reservas encontradas:', totalReservas);
+      
+      const totalClientes = await Usuario.countDocuments({ tipo: 'cliente' });
+      console.log('👥 Total clientes encontrados:', totalClientes);
+      
+      // Calcular ingresos totales de todos los hoteles
+      const ingresosResult = await Reserva.aggregate([
+        { $match: { estado: 'confirmada' } },
+        { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
+      ]);
+      const ingresosTotales = ingresosResult.length > 0 ? ingresosResult[0].total : 0;
+      console.log('💰 Ingresos totales calculados:', ingresosTotales);
+      
+      // Reservas por mes (simplificado)
+      const reservasPorMes = [];
       
       stats = {
-        totalHoteles, // Mostrar total real de hoteles, no solo 1
-        totalReservas: reservasHotel,
-        totalHabitaciones: habitacionesTotal,
+        totalHoteles,
+        totalReservas,
+        totalClientes,
         ingresosTotales,
-        ocupacionActual: hotel.ocupacion || 0,
-        nombreHotel: hotel.nombre
+        reservasPorMes,
+        ocupacionPromedio: 0
       };
-      }
+      
+      console.log('📊 Stats calculadas para admin_hotel:', stats);
 
     } else if (userRole === 'cliente' || userRole === 'empresa') {
       // Estadísticas del usuario
@@ -123,7 +99,7 @@ router.get('/generales', async (req, res) => {
 
       const gastoTotal = await Reserva.aggregate([
         { $match: { cliente: userId, estado: 'confirmada' } },
-        { $group: { _id: null, total: { $sum: '$precioTotal' } } }
+        { $group: { _id: null, total: { $sum: '$tarifa.total' } } }
       ]);
       const totalGastado = gastoTotal.length > 0 ? gastoTotal[0].total : 0;
 
