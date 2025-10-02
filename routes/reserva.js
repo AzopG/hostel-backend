@@ -1,11 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const Reserva = require('../models/Reserva');
-const { auth } = require('../middleware/auth');
+const { auth, requireAdminCentral } = require('../middleware/auth');
 const reservaController = require('../controllers/reservaController');
+
 
 // Obtener todas las reservas (usar el controller)
 router.get('/', reservaController.obtenerTodasReservas);
+
+// HU25: Ocupación por hotel y rango de fechas (solo admin central)
+router.get('/ocupacion-hotel', auth, requireAdminCentral, reservaController.obtenerOcupacionPorHotel);
 
 // Obtener mis reservas (filtradas por usuario o parámetros)
 router.get('/mis-reservas', auth, reservaController.obtenerMisReservas);
