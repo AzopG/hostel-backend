@@ -3,6 +3,22 @@ const router = express.Router();
 const Habitacion = require('../models/Habitacion');
 const habitacionController = require('../controllers/habitacionController');
 
+// Obtener todas las habitaciones (ruta básica)
+router.get('/', async (req, res) => {
+  try {
+    const habitaciones = await Habitacion.find().populate('hotel', 'nombre ciudad direccion telefono email politicas fotos calificacion');
+    res.json({
+      success: true,
+      habitaciones
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener habitaciones',
+      error: error.message
+    });
+  }
+});
 
 // Buscar habitaciones por filtros avanzados
 router.get('/buscar', async (req, res) => {
