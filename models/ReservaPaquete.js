@@ -221,6 +221,6 @@ reservaPaqueteSchema.index({ usuario: 1, fechaInicio: -1 });
 reservaPaqueteSchema.index({ hotel: 1, fechaInicio: 1 });
 reservaPaqueteSchema.index({ paquete: 1 });
 reservaPaqueteSchema.index({ estado: 1 });
-reservaPaqueteSchema.index({ numeroReserva: 1 });
+// numeroReserva ya tiene índice único automático por la definición del schema
 
 module.exports = mongoose.model('ReservaPaquete', reservaPaqueteSchema);
