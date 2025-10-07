@@ -120,6 +120,7 @@ const crearReservaPaquete = async (req, res) => {
     
     // Crear la reserva
     console.log('💾 Creando nueva reserva...');
+    console.log('🏨 Hotel del paquete:', paquete.hotel);
     const nuevaReserva = new ReservaPaquete({
       ...datosReserva,
       usuario: usuarioId,
@@ -456,12 +457,18 @@ const listarReservasHotel = async (req, res) => {
       const todosHoteles = await Hotel.find({}).select('_id');
       hotelesIds = todosHoteles.map(h => h._id);
     } else if (usuarioAdmin.rol === 'admin_hotel') {
-      // Admin hotel puede ver todos los hoteles también
-      const todosHoteles = await Hotel.find({}).select('_id');
-      hotelesIds = todosHoteles.map(h => h._id);
+      // Admin hotel ve solo los hoteles que administra
+      if (usuarioAdmin.hoteles && usuarioAdmin.hoteles.length > 0) {
+        hotelesIds = usuarioAdmin.hoteles;
+      } else {
+        // Si no tiene hoteles asignados, por ahora permitir ver todos (compatibilidad)
+        const todosHoteles = await Hotel.find({}).select('_id');
+        hotelesIds = todosHoteles.map(h => h._id);
+      }
     }
 
     console.log(`🏨 Hoteles a verificar: ${hotelesIds.length}`);
+    console.log('🔍 Hoteles IDs:', hotelesIds);
 
     // Crear filtros - Si no hay filtro específico, buscar en todos los hoteles
     let filtros = {};
@@ -473,6 +480,10 @@ const listarReservasHotel = async (req, res) => {
     }
 
     console.log('🔍 Filtros aplicados:', filtros);
+
+    // Primero verificar cuántas reservas de paquetes hay en total
+    const totalReservasPaquetes = await ReservaPaquete.countDocuments({});
+    console.log(`📊 Total reservas de paquetes en BD: ${totalReservasPaquetes}`);
 
     // Obtener reservas
     const reservas = await ReservaPaquete.find(filtros)
