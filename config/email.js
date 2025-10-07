@@ -684,10 +684,7 @@ const sendReservaConfirmacionEmail = async (reservaData) => {
               <div class="important-notes">
                 <h4>⚠️ Información Importante</h4>
                 <ul>
-                  <li><strong>Check-in:</strong> ${checkInTime || '14:00 hrs'}</li>
-                  <li><strong>Check-out:</strong> ${checkOutTime || '12:00 hrs'}</li>
-                  <li><strong>Cancelación gratuita:</strong> Hasta 48 horas antes del check-in</li>
-                  <li><strong>Cancelación con penalización:</strong> 50% entre 48-24 horas, 100% menos de 24 horas</li>
+                  <li><strong>Cancelación gratuita:</strong> Hasta 24 horas antes del check-in</li>
                   <li><strong>Documento de identidad:</strong> Requerido al momento del check-in</li>
                   <li><strong>Tarjeta de crédito:</strong> Se solicitará como garantía</li>
                 </ul>
@@ -752,9 +749,7 @@ TOTAL PAGADO: $${tarifa.total.toLocaleString('es-CO')} ${tarifa.moneda}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ⚠️ INFORMACIÓN IMPORTANTE:
-• Check-in: ${checkInTime || '14:00 hrs'}
-• Check-out: ${checkOutTime || '12:00 hrs'}
-• Cancelación gratuita hasta 48 horas antes
+• Cancelación gratuita hasta 24 horas antes
 • Documento de identidad requerido al check-in
 
 Ver comprobante completo: ${process.env.FRONTEND_URL || 'http://localhost:4200'}/comprobante/${codigoReserva}
