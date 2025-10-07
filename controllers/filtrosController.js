@@ -107,10 +107,10 @@ exports.filtrarHabitaciones = async (req, res) => {
     }
 
     // CA1: Filtrar por disponibilidad en el rango de fechas
-    // Buscar reservas que se solapan con el rango solicitado
+    // Buscar reservas que se solapan con el rango solicitado (incluyendo cualquier día ocupado)
     const reservasEnRango = await Reserva.find({
       habitacion: { $in: habitacionesCandidatas.map(h => h._id) },
-      estado: { $ne: 'cancelada' },
+      estado: { $in: ['confirmada', 'pendiente'] }, // Solo reservas activas
       $or: [
         // Reserva que empieza durante el rango
         {
@@ -124,6 +124,11 @@ exports.filtrarHabitaciones = async (req, res) => {
         {
           fechaInicio: { $lte: inicio },
           fechaFin: { $gte: fin }
+        },
+        // Reserva que se solapa parcialmente (cualquier intersección)
+        {
+          fechaInicio: { $lt: fin },
+          fechaFin: { $gt: inicio }
         }
       ]
     });
