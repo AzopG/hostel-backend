@@ -29,7 +29,8 @@ const usuarioSchema = new mongoose.Schema({
   
   // Metadata
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  lastLogin: { type: Date }
 });
 
 // Middleware para actualizar updatedAt

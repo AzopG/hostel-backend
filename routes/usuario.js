@@ -4,11 +4,24 @@ const Usuario = require('../models/Usuario');
 
 // Consultar usuarios por tipo
 router.get('/', async (req, res) => {
-  const { tipo } = req.query;
-  const filtro = {};
-  if (tipo) filtro.tipo = tipo;
-  const usuarios = await Usuario.find(filtro);
-  res.json(usuarios);
+  try {
+    const { tipo } = req.query;
+    const filtro = {};
+    if (tipo) filtro.tipo = tipo;
+    
+    // Excluimos password por seguridad pero incluimos lastLogin
+    const usuarios = await Usuario.find(filtro)
+      .select('-password')
+      .sort({ createdAt: -1 }); // Ordenamos del más reciente al más antiguo
+    
+    res.json(usuarios);
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    res.status(500).json({ 
+      msg: 'Error interno del servidor al obtener usuarios',
+      error: error.message 
+    });
+  }
 });
 
 // Crear usuario
@@ -73,32 +86,120 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Obtener usuario por ID
+router.get('/:id', async (req, res) => {
+  try {
+    const usuario = await Usuario.findById(req.params.id).select('-password');
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json(usuario);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Editar usuario por ID (con cambio de contraseña si se envía nuevaPassword)
 const bcrypt = require('bcrypt');
 router.put('/:id', async (req, res) => {
   try {
+    // Validar que el usuario existe
+    const usuarioExistente = await Usuario.findById(req.params.id);
+    if (!usuarioExistente) return res.status(404).json({ 
+      success: false,
+      msg: 'Usuario no encontrado' 
+    });
+
     const updateData = { ...req.body };
-    if (req.body.nuevaPassword && req.body.nuevaPassword.trim() !== '') {
+    
+    // Si se cambia el email, verificar que no exista ya
+    if (updateData.email && updateData.email !== usuarioExistente.email) {
+      const emailExiste = await Usuario.findOne({ 
+        email: updateData.email.toLowerCase(),
+        _id: { $ne: req.params.id }
+      });
+      
+      if (emailExiste) {
+        return res.status(400).json({ 
+          success: false,
+          msg: 'El email ya está en uso por otro usuario' 
+        });
+      }
+      
+      updateData.email = updateData.email.toLowerCase();
+    }
+    
+    // Manejar cambio de contraseña si se proporciona
+    if (updateData.nuevaPassword && updateData.nuevaPassword.trim() !== '') {
+      if (updateData.nuevaPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          msg: 'La contraseña debe tener al menos 6 caracteres'
+        });
+      }
+      
       const salt = await bcrypt.genSalt(12);
-      updateData.password = await bcrypt.hash(req.body.nuevaPassword, salt);
+      updateData.password = await bcrypt.hash(updateData.nuevaPassword, salt);
       delete updateData.nuevaPassword;
     }
-    const usuario = await Usuario.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
-    res.json(usuario);
+    
+    // Actualizar fecha de modificación
+    updateData.updatedAt = new Date();
+    
+    // Actualizar el usuario
+    const usuarioActualizado = await Usuario.findByIdAndUpdate(
+      req.params.id, 
+      updateData, 
+      { new: true, runValidators: true }
+    ).select('-password');
+    
+    res.json({
+      success: true,
+      msg: 'Usuario actualizado correctamente',
+      usuario: usuarioActualizado
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error('Error al actualizar usuario:', err);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Error al actualizar usuario',
+      error: err.message 
+    });
   }
 });
 
 // Eliminar usuario por ID
 router.delete('/:id', async (req, res) => {
   try {
-    const usuario = await Usuario.findByIdAndDelete(req.params.id);
-    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
-    res.json({ success: true });
+    const usuario = await Usuario.findById(req.params.id);
+    if (!usuario) {
+      return res.status(404).json({ 
+        success: false,
+        msg: 'Usuario no encontrado' 
+      });
+    }
+    
+    // Guardar datos para la respuesta antes de eliminar
+    const usuarioInfo = {
+      id: usuario._id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+      tipo: usuario.tipo
+    };
+    
+    // Eliminar el usuario
+    await Usuario.findByIdAndDelete(req.params.id);
+    
+    res.json({ 
+      success: true,
+      msg: 'Usuario eliminado correctamente',
+      usuario: usuarioInfo
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error('Error al eliminar usuario:', err);
+    res.status(500).json({ 
+      success: false,
+      msg: 'Error al eliminar usuario',
+      error: err.message
+    });
   }
 });
 

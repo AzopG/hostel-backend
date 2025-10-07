@@ -123,6 +123,10 @@ exports.login = async (req, res) => {
             return res.status(401).json({ mensaje: 'Credenciales inválidas' });
         }
 
+        // Actualizar último acceso
+        usuario.lastLogin = new Date();
+        await usuario.save();
+
         // Generar token JWT
         const payload = {
             id: usuario._id,
@@ -138,7 +142,8 @@ exports.login = async (req, res) => {
             nombre: usuario.nombre,
             email: usuario.email,
             tipo: usuario.tipo,
-            empresa: usuario.empresa
+            empresa: usuario.empresa,
+            lastLogin: usuario.lastLogin
         };
 
         console.log('Login exitoso, usuario:', usuarioData);
