@@ -39,13 +39,7 @@ const reservaPaqueteSchema = new mongoose.Schema({
   horaInicio: { type: String, required: true }, // formato "HH:mm"
   horaFin: { type: String, required: true },
   
-  // Capacidad y asistentes
-  numeroAsistentes: { type: Number, required: true, min: 1 },
-  detallesAsistentes: {
-    ejecutivos: { type: Number, default: 0 },
-    empleados: { type: Number, default: 0 },
-    invitados: { type: Number, default: 0 }
-  },
+  // ...existing code...
   
   // Configuración de habitaciones reservadas
   habitacionesReservadas: [{
@@ -97,6 +91,14 @@ const reservaPaqueteSchema = new mongoose.Schema({
     observaciones: String
   }],
   
+  // Información de asistentes (corporativo)
+  asistentes: [{
+    nombre: String,
+    descripcion: String,
+    email: String,
+    telefono: String
+  }],
+
   // Información financiera
   precios: {
     subtotalPaquete: { type: Number, required: true },
