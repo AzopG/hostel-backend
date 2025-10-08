@@ -1,3 +1,135 @@
+// ===================== GESTIÓN DE ASISTENTES POR numeroReserva =====================
+// Listar asistentes por numeroReserva
+const listarAsistentesPorCodigo = async (req, res) => {
+  try {
+    const { numeroReserva } = req.params;
+    const reserva = await ReservaPaquete.findOne({ numeroReserva }).select('asistentes estado tipoEvento');
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al listar asistentes' });
+  }
+};
+
+// Agregar asistente por numeroReserva
+const agregarAsistentePorCodigo = async (req, res) => {
+  try {
+    const { numeroReserva } = req.params;
+    const { nombre, descripcion, email, telefono } = req.body;
+    const reserva = await ReservaPaquete.findOne({ numeroReserva });
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    reserva.asistentes.push({ nombre, descripcion, email, telefono });
+    await reserva.save();
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al agregar asistente' });
+  }
+};
+
+// Editar asistente por numeroReserva
+const editarAsistentePorCodigo = async (req, res) => {
+  try {
+    const { numeroReserva, asistenteId } = req.params;
+    const { nombre, descripcion, email, telefono } = req.body;
+    const reserva = await ReservaPaquete.findOne({ numeroReserva });
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    const asistente = reserva.asistentes.id(asistenteId);
+    if (!asistente) return res.status(404).json({ success: false, message: 'Asistente no encontrado' });
+    asistente.nombre = nombre;
+    asistente.descripcion = descripcion;
+    asistente.email = email;
+    asistente.telefono = telefono;
+    await reserva.save();
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al editar asistente' });
+  }
+};
+
+// Eliminar asistente por numeroReserva
+const eliminarAsistentePorCodigo = async (req, res) => {
+  try {
+    const { numeroReserva, asistenteId } = req.params;
+    const reserva = await ReservaPaquete.findOne({ numeroReserva });
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    reserva.asistentes.id(asistenteId).remove();
+    await reserva.save();
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al eliminar asistente' });
+  }
+};
+
+
+// ===================== GESTIÓN DE ASISTENTES =====================
+// Listar asistentes de una reserva
+const listarAsistentes = async (req, res) => {
+  try {
+    const { reservaId } = req.params;
+    const reserva = await ReservaPaquete.findById(reservaId).select('asistentes estado tipoEvento');
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al listar asistentes' });
+  }
+};
+
+// Agregar asistente
+const agregarAsistente = async (req, res) => {
+  try {
+    const { reservaId } = req.params;
+    const { nombre, descripcion, email, telefono } = req.body;
+    const reserva = await ReservaPaquete.findById(reservaId);
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    reserva.asistentes.push({ nombre, descripcion, email, telefono });
+    await reserva.save();
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al agregar asistente' });
+  }
+};
+
+// Editar asistente
+const editarAsistente = async (req, res) => {
+  try {
+    const { reservaId, asistenteId } = req.params;
+    const { nombre, descripcion, email, telefono } = req.body;
+    const reserva = await ReservaPaquete.findById(reservaId);
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    const asistente = reserva.asistentes.id(asistenteId);
+    if (!asistente) return res.status(404).json({ success: false, message: 'Asistente no encontrado' });
+    asistente.nombre = nombre;
+    asistente.descripcion = descripcion;
+    asistente.email = email;
+    asistente.telefono = telefono;
+    await reserva.save();
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al editar asistente' });
+  }
+};
+
+// Eliminar asistente
+const eliminarAsistente = async (req, res) => {
+  try {
+    const { reservaId, asistenteId } = req.params;
+    const reserva = await ReservaPaquete.findById(reservaId);
+    if (!reserva) return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    if (reserva.estado !== 'confirmada') return res.status(400).json({ success: false, message: 'Solo se pueden gestionar asistentes en reservas confirmadas.' });
+    reserva.asistentes.id(asistenteId).remove();
+    await reserva.save();
+    res.json({ success: true, asistentes: reserva.asistentes });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error al eliminar asistente' });
+  }
+};
 const ReservaPaquete = require('../models/ReservaPaquete');
 const Paquete = require('../models/Paquete');
 const Hotel = require('../models/Hotel');
@@ -11,7 +143,7 @@ const Salon = require('../models/Salon');
 // Listar paquetes disponibles para reservar
 const listarPaquetesDisponibles = async (req, res) => {
   try {
-    const { hotelId, fechaInicio, fechaFin, numeroAsistentes } = req.query;
+  const { hotelId, fechaInicio, fechaFin } = req.query;
     
     let filtros = { 
       estado: 'activo',
@@ -22,10 +154,7 @@ const listarPaquetesDisponibles = async (req, res) => {
       filtros.hotel = hotelId;
     }
     
-    if (numeroAsistentes) {
-      filtros.capacidadMinima = { $lte: parseInt(numeroAsistentes) };
-      filtros.capacidadMaxima = { $gte: parseInt(numeroAsistentes) };
-    }
+    // ...existing code...
     
     const paquetes = await Paquete.find(filtros)
       .populate('hotel', 'nombre ciudad direccion')
@@ -105,13 +234,7 @@ const crearReservaPaquete = async (req, res) => {
     }
     
     // Validar capacidad
-    if (datosReserva.numeroAsistentes < paquete.capacidadMinima || 
-        datosReserva.numeroAsistentes > paquete.capacidadMaxima) {
-      return res.status(400).json({
-        success: false,
-        message: `El número de asistentes debe estar entre ${paquete.capacidadMinima} y ${paquete.capacidadMaxima}`
-      });
-    }
+    // ...existing code...
     
     // Calcular precios
     console.log('💰 Calculando precios...');
@@ -400,7 +523,7 @@ const modificarReservaPaquete = async (req, res) => {
     });
     
     // Recalcular precios si es necesario
-    if (modificaciones.numeroAsistentes || modificaciones.serviciosAdicionales || 
+  if (modificaciones.serviciosAdicionales || 
         modificaciones.cateringSeleccionado) {
       const paquete = await Paquete.findById(reserva.paquete);
       reserva.precios = calcularPrecios(paquete, reserva);
@@ -660,5 +783,14 @@ module.exports = {
   // Funciones para administradores
   listarReservasHotel,
   confirmarReservaPaquete,
-  rechazarReservaPaquete
+  rechazarReservaPaquete,
+  // asistentes
+  listarAsistentes,
+  agregarAsistente,
+  editarAsistente,
+  eliminarAsistente,
+  listarAsistentesPorCodigo,
+  agregarAsistentePorCodigo,
+  editarAsistentePorCodigo,
+  eliminarAsistentePorCodigo,
 };

@@ -355,7 +355,7 @@ const validarDisponibilidadPaquete = async (req, res) => {
         inconsistencias.push({
           componente: 'catering',
           motivo: 'Capacidad máxima de catering es 200 personas',
-          alternativaOfrecida: 'Reducir número de asistentes o contratar catering externo'
+          alternativaOfrecida: 'Contratar catering externo'
         });
         cateringDisponible = false;
         todosDisponibles = false;

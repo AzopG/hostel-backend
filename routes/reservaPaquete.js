@@ -7,7 +7,23 @@ const { auth, requireRole } = require('../middleware/auth');
  * RUTAS PARA RESERVAS DE PAQUETES EMPRESARIALES
  * Acceso para usuarios autenticados
  */
+// ===================== GESTIÓN DE ASISTENTES =====================
+// Listar asistentes de una reserva
+// GET /api/reservas-paquetes/:reservaId/asistentes
+// Ahora usa numeroReserva en vez de _id
+router.get('/codigo/:numeroReserva/asistentes', auth, reservaPaqueteController.listarAsistentesPorCodigo);
 
+// Agregar asistente
+// POST /api/reservas-paquetes/:reservaId/asistentes
+router.post('/codigo/:numeroReserva/asistentes', auth, requireRole('empresa', 'admin_hotel', 'admin_central'), reservaPaqueteController.agregarAsistentePorCodigo);
+
+// Editar asistente
+// PUT /api/reservas-paquetes/:reservaId/asistentes/:asistenteId
+router.put('/codigo/:numeroReserva/asistentes/:asistenteId', auth, requireRole('empresa', 'admin_hotel', 'admin_central'), reservaPaqueteController.editarAsistentePorCodigo);
+
+// Eliminar asistente
+// DELETE /api/reservas-paquetes/:reservaId/asistentes/:asistenteId
+router.delete('/codigo/:numeroReserva/asistentes/:asistenteId', auth, requireRole('empresa', 'admin_hotel', 'admin_central'), reservaPaqueteController.eliminarAsistentePorCodigo);
 // Listar paquetes disponibles para reservar
 // GET /api/reservas-paquetes/disponibles?hotelId=&fechaInicio=&fechaFin=&numeroAsistentes=
 router.get('/disponibles',

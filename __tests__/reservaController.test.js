@@ -103,7 +103,7 @@ describe('Reserva Controller', () => {
         salon: salon._id,
         fechaInicio: new Date('2024-01-01'),
         fechaFin: new Date('2024-01-03'),
-        asistentes: ['John Doe', 'Jane Smith'],
+  // ...existing code...
         tarifa: {
           total: 2000,
           impuestos: 200,
@@ -127,7 +127,7 @@ describe('Reserva Controller', () => {
 
    if (response.status === 201) {
      expect(response.body).toHaveProperty('salon', salon._id.toString());
-     expect(response.body.asistentes).toHaveLength(2);
+  // ...existing code...
      // Verificar que el salón se marcó como no disponible
      const salonActualizado = await Salon.findById(salon._id);
   expect(salonActualizado.disponible).toBe(true);
@@ -186,7 +186,7 @@ describe('Reserva Controller', () => {
         salon: salon._id,
         fechaInicio: new Date('2024-01-01'),
         fechaFin: new Date('2024-01-03'),
-        asistentes: ['John Doe', 'Jane Smith'],
+  // ...existing code...
         tarifa: {
           total: 2000,
           impuestos: 200,

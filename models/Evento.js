@@ -6,7 +6,7 @@ const eventoSchema = new mongoose.Schema({
   hotel: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel', required: true },
   salon: { type: mongoose.Schema.Types.ObjectId, ref: 'Salon', required: true },
   fecha: { type: Date, required: true },
-  asistentes: [{ type: String }],
+  // ...existing code...
   paquete: { type: mongoose.Schema.Types.ObjectId, ref: 'Paquete' }
 });
 
