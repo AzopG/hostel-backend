@@ -1371,14 +1371,26 @@ exports.verificarDisponibilidadSalonTiempoReal = async (req, res) => {
 
     // CA2: Respuesta según disponibilidad
     if (!disponible) {
+      // Fechas formateadas para el mensaje
+      const fechaInicioStr = new Date(fechaInicio).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      const fechaFinStr = new Date(fechaFin).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      
       return res.status(409).json({
         success: false,
         disponible: false,
         conflicto: true,
-        message: 'El salón ya no está disponible para las fechas/horarios seleccionados',
+        message: '⚠️ ¡ATENCIÓN! Este salón ya está reservado',
         motivo: motivoConflicto,
         reservasEnConflicto: reservasEnConflicto,
-        sugerencia: 'Otro usuario realizó una reserva mientras completabas el formulario. Por favor, regresa a la búsqueda para encontrar otras opciones.'
+        sugerencia: `El horario del ${fechaInicioStr} al ${fechaFinStr}${horarioInicio ? ' de ' + horarioInicio + ' a ' + horarioFin : ''} ya está ocupado. Por favor, seleccione otras fechas u horarios para su reserva o explore otros salones disponibles.`
       });
     }
 
