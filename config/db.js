@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
-        console.log('🔄 Conectando a MongoDB...');
-        console.log(`📍 URI: ${process.env.MONGO_URI?.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`);
+        // console.log('🔄 Conectando a MongoDB...');
+        // console.log(`📍 URI: ${process.env.MONGO_URI?.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@')}`);
         
         const conn = await mongoose.connect(process.env.MONGO_URI, {
             serverSelectionTimeoutMS: 10000, // 10 segundos timeout
@@ -11,8 +11,8 @@ const connectDB = async () => {
             maxPoolSize: 10 // Limita el pool de conexiones para mejorar performance
         });
 
-        console.log(`✅ MongoDB conectado: ${conn.connection.host}`);
-        console.log(`📊 Base de datos: ${conn.connection.name}`);
+        // console.log(`✅ MongoDB conectado: ${conn.connection.host}`);
+        // console.log(`📊 Base de datos: ${conn.connection.name}`);
         
         // Event listeners para monitoreo
         mongoose.connection.on('error', (err) => {
@@ -44,7 +44,7 @@ const connectDB = async () => {
             console.log('   3. Verifica la configuración de red');
         }
         
-        console.log('\n💡 Alternativa: Usa MongoDB local comentando/descomentando en .env');
+        // console.log('\n💡 Alternativa: Usa MongoDB local comentando/descomentando en .env');
         process.exit(1);
     }
 };

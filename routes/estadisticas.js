@@ -10,8 +10,8 @@ const { auth } = require('../middleware/auth');
 
 // Obtener estadísticas generales del sistema (PÚBLICO)
 router.get('/generales', async (req, res) => {
-  console.log('🔍 ENDPOINT ESTADISTICAS LLAMADO');
-  console.log('Usuario autenticado:', req.usuario);
+  // console.log('🔍 ENDPOINT ESTADISTICAS LLAMADO');
+  // console.log('Usuario autenticado:', req.usuario);
   
   try {
     const userId = req.usuario?.id;
@@ -52,7 +52,7 @@ router.get('/generales', async (req, res) => {
         }
       ]);
 
-      console.log('Reservas por mes calculadas:', reservasPorMes);
+      // console.log('Reservas por mes calculadas:', reservasPorMes);
 
       // Reporte: habitaciones por hotel
       const hoteles = await Hotel.find({});

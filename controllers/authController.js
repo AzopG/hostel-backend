@@ -97,11 +97,11 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log('Login recibido:', { email, password });
+        // console.log('Login recibido:', { email, password });
 
         // Validaciones básicas
         if (!email || !password) {
-            console.log('Faltan email o contraseña');
+            // console.log('Faltan email o contraseña');
             return res.status(400).json({ 
                 msg: 'Email y contraseña son requeridos' 
             });
@@ -109,17 +109,17 @@ exports.login = async (req, res) => {
 
         // Buscar usuario
         const usuario = await Usuario.findOne({ email: email.toLowerCase() });
-        console.log('Usuario encontrado:', usuario);
+        // console.log('Usuario encontrado:', usuario);
         if (!usuario) {
-            console.log('No se encontró usuario con ese email');
+            // console.log('No se encontró usuario con ese email');
             return res.status(401).json({ mensaje: 'Credenciales inválidas' });
         }
 
         // Verificar contraseña
         const valido = await bcrypt.compare(password, usuario.password);
-        console.log('Contraseña válida:', valido);
+        // console.log('Contraseña válida:', valido);
         if (!valido) {
-            console.log('Contraseña incorrecta');
+            // console.log('Contraseña incorrecta');
             return res.status(401).json({ mensaje: 'Credenciales inválidas' });
         }
 
@@ -146,7 +146,7 @@ exports.login = async (req, res) => {
             lastLogin: usuario.lastLogin
         };
 
-        console.log('Login exitoso, usuario:', usuarioData);
+        // console.log('Login exitoso, usuario:', usuarioData);
         res.json({ 
             msg: 'Login exitoso',
             token, 
